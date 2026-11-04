@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<!--
+  ProtoFlow starter page: the smallest complete web page for a ProtoFlow prototype.
+  It connects to your team server, lists the devices, shows each sensor value as it
+  arrives and gives every on/off actuator an On and an Off button. Build your own page
+  from it. Exact values and commands for each component: ../docs/components.md
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ProtoFlow starter</title>
+
+    <!-- Your team server: replace YOUR-TEAM with its name, for example alpha -->
+    <meta name="protoflow-websocket-url" content="wss://YOUR-TEAM.proto.aalto.fi/ws/app">
+    <script src="https://proto.aalto.fi/protoflow.min.js"></script>
+
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+        .device { border: 1px solid #ccc; border-radius: 8px; padding: 0.25rem 1rem; margin: 1rem 0; }
+        .value { font-weight: bold; font-variant-numeric: tabular-nums; }
+        .muted { color: #666; }
+        button { margin-left: 0.5rem; }
+    </style>
+</head>
+<body>
+    <h1>ProtoFlow starter</h1>
+    <p><span id="status" class="muted">Connecting…</span> <button id="refresh">Refresh devices</button></p>
+    <div id="devices"></div>
+
+    <script>
+        const statusText = document.getElementById('status');
+        const devicesBox = document.getElementById('devices');
+        const valueCells = new Map();   // "deviceUuid/sensorName" → the element showing its value
+
+        function line(text) {
+            const p = document.createElement('p');
+            p.textContent = text;
+            return p;
+        }
+
+        // One section per device, built from the sensors and actuators it registered
+        function showDevices(devices) {
+            devicesBox.replaceChildren();
+            valueCells.clear();
+            if (devices.length === 0) {
+                devicesBox.append(line('No devices are connected to this server yet.'));
+            }
+            for (const device of devices) {
+                const section = document.createElement('section');
+                section.className = 'device';
+                const title = document.createElement('h2');
+                title.textContent = device.deviceName;
+                section.append(title);
+
+                for (const sensor of device.sensors || []) {
+                    const row = line(`${sensor.name}: `);
+                    const value = document.createElement('span');
+                    value.className = 'value';
+                    value.textContent = 'no data yet';
+                    row.append(value, ` ${sensor.unit || ''}`);
+                    valueCells.set(`${device.uuid}/${sensor.name}`, value);
+                    section.append(row);
+                }
+
+                for (const actuator of device.actuators || []) {
+                    const row = line(actuator.name);
+                    if (actuator.data_type === 'boolean') {
+                        for (const [label, command] of [['On', true], ['Off', false]]) {
+                            const button = document.createElement('button');
+                            button.textContent = label;
+                            button.onclick = () => ProtoFlow.sendCommand(device.uuid, actuator.name, command);
+                            row.append(button);
+                        }
+                    } else {
+                        row.append(' (its commands are in docs/components.md)');
+                    }
+                    section.append(row);
+                }
+
+                devicesBox.append(section);
+                ProtoFlow.subscribeToDevice(device.uuid);   // subscribing again is harmless
+            }
+        }
+
+        function showValue({ device, sensor, value }) {
+            const cell = valueCells.get(`${device}/${sensor}`);
+            if (!cell) return;
+            if (typeof value === 'number') cell.textContent = value.toFixed(1);
+            else if (typeof value === 'object') cell.textContent = JSON.stringify(value);
+            else cell.textContent = String(value);
+        }
+
+        document.getElementById('refresh').onclick = () => ProtoFlow.getDevices().catch(() => {});
+
+        ProtoFlow
+            .on('connect', () => { statusText.textContent = 'Connected'; })
+            .on('disconnect', () => { statusText.textContent = 'Disconnected, trying again…'; })
+            .on('devices', showDevices)
+            .on('sensor', showValue)
+            .on('error', ({ message }) => { statusText.textContent = message; })
+            .connect();
+    </script>
+</body>
+</html>

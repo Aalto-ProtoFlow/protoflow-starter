@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- ============================================ -->
+    <!-- SECTION 1: PAGE SETTINGS                     -->
+    <!-- This section contains basic page information -->
+    <!-- ============================================ -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProtoFlow Multi-Sensor Viewer</title>  <!-- TRY: Change this to your name! -->
+
+    <!-- ProtoFlow Server Configuration -->
+    <meta name="protoflow-websocket-url" content="wss://YOUR-TEAM.proto.aalto.fi/ws/app">
+
+    <style>
+        /* ============================================ */
+        /* SECTION 2: STYLES (how things look)         */
+        /* CSS controls colors, sizes, and layout      */
+        /* ============================================ */
+
+        /* --- Page Background and Text --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f8;  /* TRY: #1a1a2e for dark mode */
+            color: #333;         /* TRY: #ffffff for dark mode */
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* --- Main Container --- */
+        .container {
+            max-width: 1000px;   /* Wider than viewer.html to fit several cards */
+            margin: 0 auto;
+        }
+
+        /* --- Page Header --- */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;     /* TRY: Make it bigger! 48px */
+            font-weight: 600;
+            color: #2d3748;      /* TRY: #4a90d9 for blue */
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        /* --- Cards (the boxes that show sensor data) --- */
+        .card {
+            background: white;           /* TRY: #2d2d44 for dark cards */
+            border-radius: 16px;         /* TRY: 0px for sharp corners */
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);  /* This makes the shadow */
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        /* --- Connection Status --- */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #cbd5e0;
+        }
+
+        .status-dot.connected {
+            background: #48bb78;  /* Green when connected */
+        }
+
+        .status-dot.connecting {
+            background: #ed8936;  /* Orange when connecting */
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        /* --- Buttons --- */
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: #4a90d9;  /* TRY: #48bb78 for green */
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3182ce;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- Device Picker Dropdown --- */
+        .device-picker {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .device-picker.visible {
+            display: block;
+        }
+
+        .device-picker select {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .device-picker select:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+
+        /* --- Device Summary (above the sensor cards) --- */
+        .device-summary {
+            display: none;
+            font-size: 14px;
+            color: #718096;
+            text-align: center;
+            margin: 8px 0 16px;
+        }
+
+        .device-summary.visible {
+            display: block;
+        }
+
+        /* --- Sensor Grid (one card per sensor) --- */
+        /* auto-fill makes as many columns as fit: 1 on a phone, 2-3 on a laptop */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));  /* TRY: 400px for bigger cards */
+            gap: 16px;
+        }
+
+        .sensor-grid .card {
+            margin-bottom: 0;   /* The grid gap already spaces the cards */
+        }
+
+        .value-display {
+            font-size: 56px;     /* Smaller than viewer.html so cards fit side by side */
+            font-weight: 700;
+            text-align: center;
+            color: #2d3748;
+            line-height: 1;
+            margin: 20px 0;
+            overflow-wrap: anywhere;
+        }
+
+        .value-display.small {
+            font-size: 18px;     /* For object values like IMU data */
+            font-weight: 500;
+            font-family: monospace;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+
+        .value-unit {
+            font-size: 20px;
+            font-weight: 400;
+            color: #718096;
+            margin-left: 4px;
+        }
+
+        /* --- Progress Bar (for number sensors) --- */
+        .progress-bar {
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 16px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4a90d9, #63b3ed);  /* TRY: #48bb78, #68d391 for green */
+            border-radius: 6px;
+            transition: width 0.15s ease;
+            width: 0%;
+        }
+
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 6px;
+        }
+
+        /* Different bar colors per sensor kind */
+        .kind-temperature .progress-fill {
+            background: linear-gradient(90deg, #ed8936, #e53e3e);  /* Warm colors */
+        }
+
+        .kind-humidity .progress-fill {
+            background: linear-gradient(90deg, #38b2ac, #4299e1);  /* Water colors */
+        }
+
+        /* --- Button State (for button sensor) --- */
+        .button-state {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+
+        .button-indicator {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #718096;
+            transition: all 0.15s ease;
+        }
+
+        .button-indicator.pressed {
+            background: #48bb78;
+            color: white;
+            transform: scale(0.95);
+            box-shadow: 0 0 0 8px rgba(72, 187, 120, 0.2);
+        }
+
+        /* --- Motion State (for PIR sensor) --- */
+        .motion-indicator {
+            text-align: center;
+            padding: 24px;
+        }
+
+        .motion-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .motion-text {
+            font-size: 18px;
+            font-weight: 500;
+            color: #718096;
+        }
+
+        .motion-indicator.detected .motion-icon {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .motion-indicator.detected .motion-text {
+            color: #e53e3e;
+            font-weight: 600;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* --- Last Update Time (bottom of each card) --- */
+        .device-info {
+            font-size: 12px;
+            color: #a0aec0;
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* --- Sensor Type Badge --- */
+        .sensor-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #edf2f7;
+            color: #4a5568;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        /* Card flashes briefly when a new value arrives */
+        .sensor-grid .card.updated {
+            box-shadow: 0 0 0 2px #63b3ed, 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #a0aec0;
+            font-size: 12px;
+        }
+
+        footer a {
+            color: #4a90d9;
+            text-decoration: none;
+        }
+
+        /* --- Responsive (smaller screens) --- */
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+            .value-display {
+                font-size: 44px;
+            }
+            h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================ -->
+    <!-- SECTION 3: CONTENT (what you see on page)   -->
+    <!-- HTML defines the structure of the page      -->
+    <!-- ============================================ -->
+
+    <div class="container">
+        <!-- Page Header -->
+        <header>
+            <h1>ProtoFlow Multi-Sensor Viewer</h1>  <!-- TRY: Change this text! -->
+            <p class="subtitle">One card for every sensor on your ESP32</p>
+        </header>
+
+        <!-- Connection Card -->
+        <div class="card">
+            <div class="status-bar">
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">Click Connect to start</span>
+            </div>
+
+            <button class="btn-primary" id="connect-btn">Connect</button>
+
+            <div class="device-picker" id="device-picker">
+                <select id="device-select">
+                    <option value="">Select your device...</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Which device we are showing, and how many sensors it has -->
+        <p class="device-summary" id="device-summary"></p>
+
+        <!-- Sensor Cards: empty here, JavaScript adds one card per sensor -->
+        <div class="sensor-grid" id="sensor-grid"></div>
+
+        <!-- Footer -->
+        <footer>
+            <p>ProtoFlow - IoT Prototyping Platform</p>
+            <p>Save this page and edit it in VS Code!</p>
+        </footer>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SECTION 4: BEHAVIOR (how the page works)    -->
+    <!-- JavaScript makes the page interactive       -->
+    <!-- ============================================ -->
+
+    <!-- Load ProtoFlow library from server -->
+    <script src="https://proto.aalto.fi/protoflow.min.js"></script>
+
+    <script>
+        // ============================================
+        // JAVASCRIPT: Making the page interactive
+        // ============================================
+        //
+        // How this differs from viewer.html:
+        // viewer.html has ONE card that shows whichever sensor sent data last.
+        // This page creates ONE CARD PER SENSOR. When you pick a device, it reads
+        // the list of sensors the ESP32 registered and makes a card for each.
+        // If data arrives for a sensor that is not in the list yet, a new card
+        // is added on the fly.
+
+        // --- Get references to HTML elements ---
+        // These let us change the page content from code
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const connectBtn = document.getElementById('connect-btn');
+        const devicePicker = document.getElementById('device-picker');
+        const deviceSelect = document.getElementById('device-select');
+        const deviceSummary = document.getElementById('device-summary');
+        const sensorGrid = document.getElementById('sensor-grid');
+
+        // Track connection state
+        let isConnected = false;
+        let currentDevice = null;
+        let currentDeviceName = '';
+        let allDevices = [];     // Device list from NodeRED (includes each device's sensors)
+        let cards = {};          // Sensor name → its card on the page
+
+        // --- Sensor kinds ---
+        // Each kind decides how a card looks: which display, unit and range.
+        // The ESP32 tells us a sensor's type when it registers (e.g. "temperature").
+        // TRY: Change a range or unit, or add your own kind!
+        const SENSOR_KINDS = {
+            slider:      { label: 'Slider',      display: 'bar',    unit: '%',  min: 0, max: 100, decimals: 1 },
+            distance:    { label: 'Distance',    display: 'bar',    unit: 'cm', min: 0, max: 200, decimals: 1 },
+            sound:       { label: 'Sound',       display: 'bar',    unit: 'dB', min: 0, max: 100, decimals: 0 },
+            temperature: { label: 'Temperature', display: 'bar',    unit: '°C', min: 0, max: 50,  decimals: 1 },
+            humidity:    { label: 'Humidity',    display: 'bar',    unit: '%',  min: 0, max: 100, decimals: 0 },
+            button:      { label: 'Button',      display: 'button' },
+            motion:      { label: 'Motion',      display: 'motion' },
+            generic:     { label: 'Sensor',      display: 'value',  unit: '',   decimals: 2 }
+        };
+
+        // --- Work out the kind from the sensor type (or its name) ---
+        function getSensorKind(type, name) {
+            const text = ((type || '') + ' ' + (name || '')).toLowerCase();
+
+            if (text.includes('button') || text.includes('digital')) return 'button';
+            if (text.includes('pir') || text.includes('motion')) return 'motion';
+            if (text.includes('temp')) return 'temperature';
+            if (text.includes('humid')) return 'humidity';
+            if (text.includes('ultrasonic') || text.includes('distance')) return 'distance';
+            if (text.includes('sound')) return 'sound';
+            if (text.includes('slider') || text.includes('rotary') ||
+                text.includes('potentiometer') || text.includes('analog')) return 'slider';
+            return 'generic';
+        }
+
+        // --- Make units from the ESP32 look nice ---
+        function prettyUnit(unit) {
+            if (unit === 'celsius') return '°C';
+            if (unit === 'fahrenheit') return '°F';
+            return unit;
+        }
+
+        // --- Update status display ---
+        function updateStatus(state, message) {
+            statusDot.className = 'status-dot ' + state;
+            statusText.textContent = message;
+        }
+
+        // --- Remove all sensor cards ---
+        function clearCards() {
+            sensorGrid.innerHTML = '';
+            cards = {};
+        }
+
+        // --- Show "Device: X · N sensors" above the cards ---
+        function updateSummary() {
+            const count = Object.keys(cards).length;
+            deviceSummary.textContent = count === 0
+                ? currentDeviceName + ' · Waiting for your sensors to send data...'
+                : currentDeviceName + ' · ' + count + (count === 1 ? ' sensor' : ' sensors');
+            deviceSummary.classList.add('visible');
+        }
+
+        // --- Small helper: create an element with a class and text ---
+        function makeElement(tag, className, text) {
+            const el = document.createElement(tag);
+            if (className) el.className = className;
+            if (text !== undefined) el.textContent = text;
+            return el;
+        }
+
+        // --- Create one card for one sensor ---
+        // sensor = { name, type, unit, min_value, max_value } from the device list
+        function createCard(sensor) {
+            const kindName = getSensorKind(sensor.type, sensor.name);
+            const kind = SENSOR_KINDS[kindName];
+
+            // Use the range and unit the ESP32 registered, if it sent them
+            const hasRange = typeof sensor.min_value === 'number' &&
+                             typeof sensor.max_value === 'number' &&
+                             sensor.max_value > sensor.min_value;
+            const card = {
+                kind: kind,
+                min: hasRange ? sensor.min_value : kind.min,
+                max: hasRange ? sensor.max_value : kind.max,
+                unit: sensor.unit ? prettyUnit(sensor.unit) : (kind.unit || '')
+            };
+
+            // The card box
+            const box = makeElement('div', 'card kind-' + kindName);
+            box.appendChild(makeElement('span', 'sensor-badge', kindName === 'generic' && sensor.type ? sensor.type : kind.label));
+            box.appendChild(makeElement('p', 'card-title', sensor.name));
+
+            // The display inside the card depends on the kind
+            if (kind.display === 'bar' || kind.display === 'value') {
+                // Big number + unit
+                const valueRow = makeElement('div', 'value-display');
+                card.valueEl = makeElement('span', '', '--');
+                valueRow.appendChild(card.valueEl);
+                valueRow.appendChild(makeElement('span', 'value-unit', card.unit));
+                box.appendChild(valueRow);
+                card.valueRow = valueRow;
+
+                // Progress bar with min and max labels
+                if (kind.display === 'bar') {
+                    const bar = makeElement('div', 'progress-bar');
+                    card.fillEl = makeElement('div', 'progress-fill');
+                    bar.appendChild(card.fillEl);
+                    box.appendChild(bar);
+
+                    const labels = makeElement('div', 'range-labels');
+                    labels.appendChild(makeElement('span', '', card.min + ' ' + card.unit));
+                    labels.appendChild(makeElement('span', '', card.max + ' ' + card.unit));
+                    box.appendChild(labels);
+                }
+            } else if (kind.display === 'button') {
+                const state = makeElement('div', 'button-state');
+                card.indicatorEl = makeElement('div', 'button-indicator', 'RELEASED');
+                state.appendChild(card.indicatorEl);
+                box.appendChild(state);
+            } else if (kind.display === 'motion') {
+                card.indicatorEl = makeElement('div', 'motion-indicator');
+                card.indicatorEl.appendChild(makeElement('div', 'motion-icon', '👁️'));
+                card.textEl = makeElement('div', 'motion-text', 'No motion');
+                card.indicatorEl.appendChild(card.textEl);
+                box.appendChild(card.indicatorEl);
+            }
+
+            // When was the last value received?
+            card.timeEl = makeElement('div', 'device-info', 'Waiting for data...');
+            box.appendChild(card.timeEl);
+
+            card.box = box;
+            sensorGrid.appendChild(box);
+            cards[sensor.name] = card;
+            updateSummary();
+            return card;
+        }
+
+        // --- Update one card with a new value ---
+        function updateCard(card, value) {
+            const kind = card.kind;
+
+            if (kind.display === 'bar') {
+                const number = typeof value === 'number' ? value : parseFloat(value) || 0;
+                card.valueEl.textContent = number.toFixed(kind.decimals);
+                // Turn the value into a 0-100% bar width
+                const percent = ((number - card.min) / (card.max - card.min)) * 100;
+                card.fillEl.style.width = Math.max(0, Math.min(100, percent)) + '%';
+            }
+            else if (kind.display === 'button') {
+                const pressed = value === 1 || value === true || value === '1';
+                card.indicatorEl.textContent = pressed ? 'PRESSED' : 'RELEASED';
+                card.indicatorEl.className = 'button-indicator' + (pressed ? ' pressed' : '');
+            }
+            else if (kind.display === 'motion') {
+                const detected = value === 1 || value === true || value === '1';
+                card.indicatorEl.className = 'motion-indicator' + (detected ? ' detected' : '');
+                card.textEl.textContent = detected ? 'MOTION DETECTED!' : 'No motion';
+            }
+            else {
+                // Generic: numbers get decimals, objects (like IMU data) are shown as text
+                if (typeof value === 'number') {
+                    card.valueRow.classList.remove('small');
+                    card.valueEl.textContent = value.toFixed(kind.decimals);
+                } else if (typeof value === 'object' && value !== null) {
+                    card.valueRow.classList.add('small');
+                    card.valueEl.textContent = JSON.stringify(value, null, 1);
+                } else {
+                    card.valueEl.textContent = String(value);
+                }
+            }
+
+            card.timeEl.textContent = 'Last update: ' + new Date().toLocaleTimeString();
+
+            // Flash the card border so you can see which sensor just changed
+            card.box.classList.add('updated');
+            clearTimeout(card.flashTimer);
+            card.flashTimer = setTimeout(() => card.box.classList.remove('updated'), 300);
+        }
+
+        // --- Connect Button Handler ---
+        connectBtn.addEventListener('click', () => {
+            if (!isConnected) {
+                // Start connecting
+                updateStatus('connecting', 'Connecting...');
+                connectBtn.disabled = true;
+                ProtoFlow.connect();
+            } else {
+                // Disconnect
+                ProtoFlow.disconnect();
+                isConnected = false;
+                currentDevice = null;
+                updateStatus('', 'Disconnected');
+                connectBtn.textContent = 'Connect';
+                devicePicker.classList.remove('visible');
+                deviceSummary.classList.remove('visible');
+                clearCards();
+            }
+        });
+
+        // --- Device Selection Handler ---
+        deviceSelect.addEventListener('change', (e) => {
+            const uuid = e.target.value;
+            if (!uuid) return;
+
+            // Find device info
+            const option = deviceSelect.options[deviceSelect.selectedIndex];
+            const device = allDevices.find(d => d.uuid === uuid);
+
+            // IMPORTANT: Unsubscribe from previous device before subscribing to new one
+            if (currentDevice && currentDevice !== uuid) {
+                ProtoFlow.unsubscribeFromDevice(currentDevice);
+            }
+
+            // Subscribe to this device
+            ProtoFlow.subscribeToDevice(uuid);
+            currentDevice = uuid;
+            currentDeviceName = option.textContent;
+            updateStatus('connected', 'Receiving data from ' + currentDeviceName);
+
+            // Make one card for every sensor this device registered
+            clearCards();
+            const sensors = (device && device.sensors) || [];
+            console.log(`[CARDS] ${currentDeviceName} has ${sensors.length} sensors:`, sensors.map(s => s.name));
+            sensors.forEach(sensor => createCard(sensor));
+            updateSummary();
+        });
+
+        // --- ProtoFlow Event Handlers ---
+
+        // When connected and registered
+        ProtoFlow.on('connect', () => {
+            isConnected = true;
+            updateStatus('connected', 'Connected! Select your device');
+            connectBtn.textContent = 'Disconnect';
+            connectBtn.disabled = false;
+        });
+
+        // When device list is received
+        ProtoFlow.on('devices', (devices) => {
+            allDevices = devices;
+
+            // Clear and populate device dropdown
+            deviceSelect.innerHTML = '<option value="">Select your device...</option>';
+
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.uuid;
+                option.textContent = device.deviceName || device.name || device.uuid.substring(0, 8);
+                deviceSelect.appendChild(option);
+            });
+
+            // Show device picker
+            devicePicker.classList.add('visible');
+
+            // Keep the current device selected if it is still in the list
+            const current = devices.find(d => d.uuid === currentDevice);
+            if (current) {
+                deviceSelect.value = currentDevice;
+                // Subscribe again (needed after an automatic reconnect; harmless otherwise)
+                ProtoFlow.subscribeToDevice(currentDevice);
+                // Add cards for any sensors the device registered since we last looked
+                (current.sensors || []).forEach(sensor => {
+                    if (!cards[sensor.name]) createCard(sensor);
+                });
+                return;
+            }
+
+            // If only one device, auto-select it
+            if (devices.length === 1) {
+                deviceSelect.value = devices[0].uuid;
+                deviceSelect.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // When sensor data is received
+        ProtoFlow.on('sensor', (data) => {
+            console.log(`[SENSOR] ${data.sensor} = ${JSON.stringify(data.value)}`);
+
+            // Only process if it's from our subscribed device
+            if (data.device !== currentDevice) return;
+
+            // Find this sensor's card, or make a new one if we have not seen it yet
+            const card = cards[data.sensor] || createCard({ name: data.sensor });
+
+            // Update the value
+            updateCard(card, data.value);
+        });
+
+        // When disconnected
+        ProtoFlow.on('disconnect', () => {
+            isConnected = false;
+            updateStatus('', 'Disconnected');
+            connectBtn.textContent = 'Connect';
+            connectBtn.disabled = false;
+            devicePicker.classList.remove('visible');
+        });
+
+        // When error occurs
+        ProtoFlow.on('error', (error) => {
+            console.error('ProtoFlow error:', error);
+            updateStatus('', 'Error: ' + error.message);
+            connectBtn.disabled = false;
+        });
+    </script>
+</body>
+</html>

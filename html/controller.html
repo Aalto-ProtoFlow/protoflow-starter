@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<!--
+  ProtoFlow Actuator Controller: a single-file page that sends commands to an ESP32's
+  actuators through Node-RED, using protoflow.js.
+  It shows a control card for each actuator the selected device registered, matched by
+  actuator name (led, rgbstick, rgb, lcd, display, oled, ledbar, vibrator, buzzer, speaker).
+  It does not show sensor data: see viewer.html and bidirectional.html.
+-->
+<html lang="en">
+<head>
+    <!-- ============================================ -->
+    <!-- SECTION 1: PAGE SETTINGS                     -->
+    <!-- This section contains basic page information -->
+    <!-- ============================================ -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProtoFlow Actuator Controller</title>  <!-- TRY: Change this to your name! -->
+
+    <!-- ProtoFlow Server Configuration -->
+    <meta name="protoflow-websocket-url" content="wss://YOUR-TEAM.proto.aalto.fi/ws/app">
+
+    <style>
+        /* ============================================ */
+        /* SECTION 2: STYLES (how things look)         */
+        /* CSS controls colors, sizes, and layout      */
+        /* ============================================ */
+
+        /* --- CSS Variables (easy to change colors!) --- */
+        :root {
+            --accent-color: #4a90d9;    /* TRY: #48bb78 for green theme */
+            --accent-hover: #3182ce;
+            --danger-color: #e53e3e;
+            --bg-color: #f0f4f8;        /* TRY: #1a1a2e for dark mode */
+            --text-color: #333;         /* TRY: #ffffff for dark mode */
+            --card-bg: white;           /* TRY: #2d2d44 for dark mode */
+        }
+
+        /* --- Page Background and Text --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* --- Main Container --- */
+        .container {
+            max-width: 500px;    /* TRY: 800px for wider layout */
+            margin: 0 auto;
+        }
+
+        /* --- Page Header --- */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        /* --- Cards (the boxes for controls) --- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;         /* TRY: 0px for sharp corners */
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        /* --- Connection Status --- */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #cbd5e0;
+        }
+
+        .status-dot.connected {
+            background: #48bb78;
+        }
+
+        .status-dot.connecting {
+            background: #ed8936;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        /* --- Buttons --- */
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- Control Buttons (ON/OFF) --- */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .btn-on {
+            background: #48bb78;         /* TRY: var(--accent-color) to match theme */
+            color: white;
+            padding: 16px 32px;
+            font-size: 18px;             /* TRY: 24px for bigger buttons */
+            min-width: 100px;
+        }
+
+        .btn-on:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-off {
+            background: #718096;
+            color: white;
+            padding: 16px 32px;
+            font-size: 18px;
+            min-width: 100px;
+        }
+
+        .btn-off:hover {
+            background: #4a5568;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(113, 128, 150, 0.4);
+        }
+
+        /* Active state when actuator is ON */
+        .btn-on.active {
+            box-shadow: 0 0 20px rgba(72, 187, 120, 0.6);
+            animation: glow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 0 10px rgba(72, 187, 120, 0.4); }
+            to { box-shadow: 0 0 20px rgba(72, 187, 120, 0.8); }
+        }
+
+        /* --- Note Buttons (for speaker) --- */
+        .note-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin: 20px 0 0;
+        }
+
+        .btn-note {
+            background: #805ad5;         /* TRY: #4a90d9 for blue keys */
+            color: white;
+            padding: 14px 0;
+            font-size: 16px;
+            min-width: 56px;
+        }
+
+        .btn-note:hover {
+            background: #6b46c1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(128, 90, 213, 0.4);
+        }
+
+        /* --- Device Picker Dropdown --- */
+        .device-picker {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .device-picker.visible {
+            display: block;
+        }
+
+        .device-picker select {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .device-picker select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        /* --- Control Panel (hidden until device selected) --- */
+        .control-panel {
+            display: none;
+        }
+
+        .control-panel.visible {
+            display: block;
+        }
+
+        /* --- Actuator Status Display --- */
+        .actuator-status {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f7fafc;
+            border-radius: 12px;
+        }
+
+        .status-icon {
+            font-size: 48px;             /* TRY: 72px for bigger icon */
+            margin-bottom: 8px;
+        }
+
+        .status-icon.on {
+            filter: drop-shadow(0 0 10px #ffd700);
+        }
+
+        .status-label {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- Info Text --- */
+        .device-info {
+            font-size: 12px;
+            color: #a0aec0;
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        /* --- Slider Control (for brightness, etc.) --- */
+        .slider-control {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .slider-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-control input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: #e2e8f0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .slider-control input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        /* --- Text Input Controls --- */
+        .text-control {
+            margin: 16px 0;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .text-control label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 12px;
+        }
+
+        .text-control input[type="text"],
+        .text-control textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .text-control input:focus,
+        .text-control textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .text-control textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* --- Color Picker Controls --- */
+        .color-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .color-control label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .color-control input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* --- Hidden by default (for challenges) --- */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================ -->
+    <!-- SECTION 3: CONTENT (what you see)           -->
+    <!-- HTML defines the structure of the page      -->
+    <!-- ============================================ -->
+
+    <div class="container">
+        <header>
+            <h1>🎮 Actuator Controller</h1>  <!-- TRY: Change the emoji and text! -->
+            <p class="subtitle">Control your hardware from the browser</p>
+        </header>
+
+        <!-- Connection Card -->
+        <div class="card">
+            <div class="card-title">Connection</div>
+            
+            <div class="status-bar">
+                <div class="status-dot" id="status-dot"></div>
+                <span class="status-text" id="status-text">Not connected</span>
+            </div>
+
+            <button class="btn-primary" id="connect-btn">Connect</button>
+
+            <!-- Device Selection (appears after connecting) -->
+            <div class="device-picker" id="device-picker">
+                <select id="device-select">
+                    <option value="">Select your device...</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Control Panel (appears after selecting device) -->
+        <div class="control-panel" id="control-panel">
+            
+            <!-- LED Control Card -->
+            <div class="card" id="led-card">
+                <div class="card-title">💡 LED Control</div>
+                
+                <!-- Status Display -->
+                <div class="actuator-status">
+                    <div class="status-icon" id="led-icon">💡</div>
+                    <div class="status-label" id="led-status">OFF</div>
+                </div>
+
+                <!-- On/Off Buttons -->
+                <div class="button-group">
+                    <button class="btn-on" id="btn-led-on" onclick="sendCommand('led', 'on')">
+                        ON
+                    </button>
+                    <button class="btn-off" id="btn-led-off" onclick="sendCommand('led', 'off')">
+                        OFF
+                    </button>
+                </div>
+
+                <!-- Brightness Slider -->
+                <!-- TRY: Uncomment this section to add brightness control!
+                     This needs a dimmable LED registered as type "pwm_led" (int 0-100).
+                     The Grove LED example registers an on/off "led": any number
+                     above 0 just switches it on, and 0 switches it off.
+                <div class="slider-control">
+                    <label>Brightness:</label>
+                    <div class="slider-row">
+                        <input type="range" id="brightness" min="0" max="100" value="100"
+                               oninput="handleBrightness(this.value)">
+                        <span class="slider-value" id="brightness-value">100%</span>
+                    </div>
+                </div>
+                -->
+
+                <div class="device-info" id="device-info">
+                    Connected to: <span id="device-name">—</span>
+                </div>
+            </div>
+
+            <!-- RGB LED Stick Control Card -->
+            <div class="card" id="rgbstick-card">
+                <div class="card-title">🌈 RGB LED Stick</div>
+
+                <!-- Color Picker -->
+                <div class="color-control">
+                    <label>Color:</label>
+                    <input type="color" id="rgb-color" value="#ff0000">
+                    <button class="btn-primary" onclick="sendRGBColor()">Set Color</button>
+                </div>
+
+                <!-- Brightness Slider -->
+                <div class="slider-control">
+                    <label>Brightness:</label>
+                    <div class="slider-row">
+                        <input type="range" id="rgb-brightness" min="0" max="255" value="128"
+                               oninput="updateRGBBrightness(this.value)">
+                        <span class="slider-value" id="rgb-brightness-value">128</span>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="button-group">
+                    <button class="btn-on" onclick="sendRGBStickCommand({r:1})">Rainbow</button>
+                    <button class="btn-off" onclick="sendRGBStickCommand({o:1})">Off</button>
+                </div>
+            </div>
+
+            <!-- Chainable RGB LED Control Card -->
+            <div class="card" id="chainrgb-card">
+                <div class="card-title">💡 Chainable RGB LED</div>
+
+                <!-- Color Picker -->
+                <div class="color-control">
+                    <label>Color:</label>
+                    <input type="color" id="chainrgb-color" value="#ff0000">
+                    <button class="btn-primary" onclick="sendChainRGBColor()">Set Color</button>
+                </div>
+
+                <!-- Quick Color Presets -->
+                <div class="button-group">
+                    <button class="btn-on" style="background:#e53e3e;" onclick="sendChainRGBCommand({r:255,g:0,b:0})">Red</button>
+                    <button class="btn-on" style="background:#38a169;" onclick="sendChainRGBCommand({r:0,g:255,b:0})">Green</button>
+                    <button class="btn-on" style="background:#3182ce;" onclick="sendChainRGBCommand({r:0,g:0,b:255})">Blue</button>
+                    <button class="btn-on" style="background:#d69e2e;" onclick="sendChainRGBCommand({r:255,g:255,b:0})">Yellow</button>
+                </div>
+                <div class="button-group">
+                    <button class="btn-on" style="background:#805ad5;" onclick="sendChainRGBCommand({r:255,g:0,b:255})">Magenta</button>
+                    <button class="btn-on" style="background:#00b5d8;" onclick="sendChainRGBCommand({r:0,g:255,b:255})">Cyan</button>
+                    <button class="btn-on" style="background:#eee;color:#333;" onclick="sendChainRGBCommand({r:255,g:255,b:255})">White</button>
+                    <button class="btn-off" onclick="sendChainRGBCommand({r:0,g:0,b:0})">Off</button>
+                </div>
+            </div>
+
+            <!-- LCD RGB Control Card -->
+            <div class="card" id="lcd-card">
+                <div class="card-title">📺 LCD Display</div>
+
+                <!-- Text Input -->
+                <div class="text-control">
+                    <label>Line 1:</label>
+                    <input type="text" id="lcd-line1" maxlength="16" placeholder="Max 16 chars">
+                    <label>Line 2:</label>
+                    <input type="text" id="lcd-line2" maxlength="16" placeholder="Max 16 chars">
+                    <button class="btn-primary" onclick="sendLCDText()">Send Text</button>
+                </div>
+
+                <!-- Backlight Color -->
+                <div class="color-control">
+                    <label>Backlight:</label>
+                    <input type="color" id="lcd-color" value="#ffffff">
+                    <button class="btn-primary" onclick="sendLCDColor()">Set Color</button>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="button-group">
+                    <button class="btn-off" onclick="sendLCDCommand({c:1})">Clear</button>
+                    <button class="btn-off" onclick="sendLCDCommand({bl:0})">BL Off</button>
+                    <button class="btn-on" onclick="sendLCDCommand({bl:1})">BL On</button>
+                </div>
+            </div>
+
+            <!-- 4-Digit Display Control Card -->
+            <div class="card" id="digit-card">
+                <div class="card-title">🔢 4-Digit Display</div>
+
+                <!-- Number Input -->
+                <div class="text-control">
+                    <label>Number (0-9999):</label>
+                    <input type="number" id="digit-number" min="0" max="9999" value="1234">
+                    <button class="btn-primary" onclick="sendDigitNumber()">Show Number</button>
+                </div>
+
+                <!-- Time Input -->
+                <div class="slider-control">
+                    <label>Time:</label>
+                    <div class="slider-row">
+                        <input type="number" id="digit-hours" min="0" max="23" value="12" style="width:60px">
+                        <span>:</span>
+                        <input type="number" id="digit-mins" min="0" max="59" value="30" style="width:60px">
+                        <button class="btn-primary" onclick="sendDigitTime()">Show Time</button>
+                    </div>
+                </div>
+
+                <!-- Text Input -->
+                <div class="text-control">
+                    <label>Text (4 chars, 0-9 A-F):</label>
+                    <input type="text" id="digit-text" maxlength="4" value="CAFE" style="text-transform:uppercase">
+                    <button class="btn-primary" onclick="sendDigitText()">Show Text</button>
+                </div>
+
+                <!-- Brightness -->
+                <div class="slider-control">
+                    <label>Brightness:</label>
+                    <div class="slider-row">
+                        <input type="range" id="digit-brightness" min="0" max="7" value="7"
+                               oninput="updateDigitBrightness(this.value)">
+                        <span class="slider-value" id="digit-brightness-value">7</span>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="button-group">
+                    <button class="btn-off" onclick="sendDigitCommand({c:1})">Clear</button>
+                </div>
+            </div>
+
+            <!-- OLED Display Control Card -->
+            <div class="card" id="oled-card">
+                <div class="card-title">📟 OLED Display</div>
+
+                <!-- Multi-line Text -->
+                <div class="text-control">
+                    <label>Text (one line per row):</label>
+                    <textarea id="oled-text" rows="4" placeholder="Line 1&#10;Line 2&#10;Line 3"></textarea>
+                    <button class="btn-primary" onclick="sendOLEDText()">Send Text</button>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="slider-control">
+                    <label>Progress:</label>
+                    <div class="slider-row">
+                        <input type="range" id="oled-progress" min="0" max="100" value="50"
+                               oninput="updateOLEDProgress(this.value)">
+                        <span class="slider-value" id="oled-progress-value">50%</span>
+                    </div>
+                    <button class="btn-primary" onclick="sendOLEDProgress()" style="margin-top: 8px;">Show Progress</button>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="button-group">
+                    <button class="btn-off" onclick="sendOLEDCommand({c:1})">Clear</button>
+                    <button class="btn-on" onclick="sendOLEDCommand({i:1})">Invert</button>
+                    <button class="btn-off" onclick="sendOLEDCommand({i:0})">Normal</button>
+                </div>
+            </div>
+
+            <!-- LED Bar Control Card -->
+            <div class="card" id="ledbar-card">
+                <div class="card-title">📊 LED Bar (10 Segments)</div>
+
+                <!-- Level Slider (Progress Bar Style) -->
+                <div class="slider-control">
+                    <label>Level (0-10):</label>
+                    <div class="slider-row">
+                        <input type="range" id="ledbar-level" min="0" max="10" value="0"
+                               oninput="updateLEDBarLevel(this.value)">
+                        <span class="slider-value" id="ledbar-level-value">0</span>
+                    </div>
+                </div>
+
+                <!-- Visual LED Bar Display -->
+                <div style="display: flex; justify-content: center; gap: 4px; margin: 16px 0;">
+                    <div class="ledbar-segment" id="led-0" onclick="toggleLEDBarSegment(0)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-1" onclick="toggleLEDBarSegment(1)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-2" onclick="toggleLEDBarSegment(2)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-3" onclick="toggleLEDBarSegment(3)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-4" onclick="toggleLEDBarSegment(4)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-5" onclick="toggleLEDBarSegment(5)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-6" onclick="toggleLEDBarSegment(6)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-7" onclick="toggleLEDBarSegment(7)" style="width:24px;height:24px;border-radius:4px;background:#38a169;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-8" onclick="toggleLEDBarSegment(8)" style="width:24px;height:24px;border-radius:4px;background:#ecc94b;opacity:0.3;cursor:pointer;"></div>
+                    <div class="ledbar-segment" id="led-9" onclick="toggleLEDBarSegment(9)" style="width:24px;height:24px;border-radius:4px;background:#e53e3e;opacity:0.3;cursor:pointer;"></div>
+                </div>
+                <p style="font-size:11px; color:#718096; text-align:center; margin-bottom:12px;">Click segments to toggle individually</p>
+
+                <!-- Quick Actions -->
+                <div class="button-group">
+                    <button class="btn-on" onclick="sendLEDBarCommand({a:1})">All On</button>
+                    <button class="btn-off" onclick="sendLEDBarCommand({a:0})">All Off</button>
+                </div>
+            </div>
+
+            <!-- Vibrator Control Card -->
+            <div class="card" id="vibrator-card">
+                <div class="card-title">📳 Vibration Motor</div>
+
+                <!-- Status Display -->
+                <div class="actuator-status">
+                    <div class="status-icon" id="vibrator-icon">📳</div>
+                    <div class="status-label" id="vibrator-status">OFF</div>
+                </div>
+
+                <!-- On/Off Buttons -->
+                <div class="button-group">
+                    <button class="btn-on" id="btn-vibrator-on" onclick="sendVibratorCommand(1)">
+                        ON
+                    </button>
+                    <button class="btn-off" id="btn-vibrator-off" onclick="sendVibratorCommand(0)">
+                        OFF
+                    </button>
+                </div>
+
+                <!-- Pulse Patterns (for local demo - actual patterns run on ESP32) -->
+                <p style="font-size:12px; color:#718096; text-align:center; margin-top:12px;">
+                    Tip: For pulse patterns, implement timing on ESP32 side
+                </p>
+            </div>
+
+            <!-- Buzzer Control Card -->
+            <div class="card" id="buzzer-card">
+                <div class="card-title">🔊 Buzzer Control</div>
+
+                <!-- Status Display -->
+                <div class="actuator-status">
+                    <div class="status-icon" id="buzzer-icon">🔊</div>
+                    <div class="status-label" id="buzzer-status">OFF</div>
+                </div>
+
+                <!-- BEEP = one short beep, STOP = silence right away -->
+                <div class="button-group">
+                    <button class="btn-on" onclick="beepBuzzer(300)">BEEP</button>  <!-- TRY: 1000 for a long beep -->
+                    <button class="btn-off" onclick="stopBuzzer()">STOP</button>
+                </div>
+
+                <p style="font-size:12px; color:#718096; text-align:center; margin-top:12px;">
+                    The ESP32 also stops the buzzer by itself after 5 seconds
+                </p>
+            </div>
+
+            <!-- Speaker Control Card -->
+            <div class="card" id="speaker-card">
+                <div class="card-title">🎵 Speaker Control</div>
+
+                <!-- Status Display -->
+                <div class="actuator-status">
+                    <div class="status-icon" id="speaker-icon">🎵</div>
+                    <div class="status-label" id="speaker-status">Silent</div>
+                </div>
+
+                <!-- Note Buttons: each plays its note for half a second -->
+                <!-- TRY: Change a frequency, or add a button with playSpeakerNote('Do+', 523) -->
+                <div class="note-grid">
+                    <button class="btn-note" onclick="playSpeakerNote('Do', 262)">Do</button>
+                    <button class="btn-note" onclick="playSpeakerNote('Re', 294)">Re</button>
+                    <button class="btn-note" onclick="playSpeakerNote('Mi', 330)">Mi</button>
+                    <button class="btn-note" onclick="playSpeakerNote('Fa', 349)">Fa</button>
+                    <button class="btn-note" onclick="playSpeakerNote('Sol', 392)">Sol</button>
+                    <button class="btn-note" onclick="playSpeakerNote('La', 440)">La</button>
+                    <button class="btn-note" onclick="playSpeakerNote('Si', 494)">Si</button>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-off" onclick="stopSpeaker()">STOP</button>
+                </div>
+            </div>
+
+            <!-- TRY: Add more control cards here! -->
+
+        </div>
+    </div>
+
+    <!-- ProtoFlow Library (handles WebSocket communication) -->
+    <script src="https://proto.aalto.fi/protoflow.min.js"></script>
+
+    <script>
+        // ============================================
+        // SECTION 4: BEHAVIOR (how it works)
+        // JAVASCRIPT: Making the page interactive
+        // ============================================
+
+        // --- Get references to HTML elements ---
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const connectBtn = document.getElementById('connect-btn');
+        const devicePicker = document.getElementById('device-picker');
+        const deviceSelect = document.getElementById('device-select');
+        const controlPanel = document.getElementById('control-panel');
+        const deviceName = document.getElementById('device-name');
+
+        // LED-specific elements
+        const ledIcon = document.getElementById('led-icon');
+        const ledStatus = document.getElementById('led-status');
+        const btnLedOn = document.getElementById('btn-led-on');
+        const btnLedOff = document.getElementById('btn-led-off');
+
+        // Track state
+        let isConnected = false;
+        let currentDevice = null;
+        let ledState = false;   // Track if LED is on or off
+        let devicesList = [];   // Store devices list for actuator lookup
+
+        // Mapping from actuator names/types to card element IDs
+        const actuatorCardMap = {
+            'led': 'led-card',
+            'rgbstick': 'rgbstick-card',
+            'rgb': 'chainrgb-card',
+            'lcd': 'lcd-card',
+            'display': 'digit-card',
+            'oled': 'oled-card',
+            'ledbar': 'ledbar-card',
+            'vibrator': 'vibrator-card',
+            'buzzer': 'buzzer-card',
+            'speaker': 'speaker-card'
+        };
+
+        // Get all actuator card IDs for hiding
+        const allActuatorCards = Object.values(actuatorCardMap);
+
+        // --- Update connection status display ---
+        function updateStatus(state, message) {
+            statusDot.className = 'status-dot ' + state;
+            statusText.textContent = message;
+        }
+
+        // --- Show only cards for device's actuators ---
+        function showActuatorCards(deviceInfo) {
+            // Hide all actuator cards first
+            allActuatorCards.forEach(cardId => {
+                const card = document.getElementById(cardId);
+                if (card) card.style.display = 'none';
+            });
+
+            // If no device info, return
+            if (!deviceInfo || !deviceInfo.actuators) {
+                console.log('No actuator info available');
+                return;
+            }
+
+            // Show cards matching device's actuators
+            deviceInfo.actuators.forEach(actuator => {
+                const cardId = actuatorCardMap[actuator.name];
+                if (cardId) {
+                    const card = document.getElementById(cardId);
+                    if (card) {
+                        card.style.display = 'block';
+                        console.log('Showing card for actuator:', actuator.name);
+                    }
+                }
+            });
+        }
+
+        // --- Update LED visual state ---
+        function updateLedDisplay(isOn) {
+            ledState = isOn;
+            
+            if (isOn) {
+                ledIcon.className = 'status-icon on';
+                ledStatus.textContent = 'ON';
+                btnLedOn.classList.add('active');
+                btnLedOff.classList.remove('active');
+            } else {
+                ledIcon.className = 'status-icon';
+                ledStatus.textContent = 'OFF';
+                btnLedOn.classList.remove('active');
+                btnLedOff.classList.add('active');
+            }
+        }
+
+        // ============================================
+        // SENDING COMMANDS (This is new in Week 2!)
+        // ============================================
+
+        /**
+         * Send a command to an actuator
+         * @param {string} actuator - Which actuator (e.g., 'led', 'buzzer')
+         * @param {*} value - What to send (e.g., 'on' / 'off', a number, or an object)
+         */
+        function sendCommand(actuator, value) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+
+            // Send the command via ProtoFlow
+            ProtoFlow.sendCommand(currentDevice, actuator, value);
+
+            // Update the UI to show what we sent
+            console.log(`Sent: ${actuator} = ${value}`);
+
+            // Update LED display if this is an LED command
+            if (actuator === 'led') {
+                if (value === 'on') {
+                    updateLedDisplay(true);
+                } else if (value === 'off') {
+                    updateLedDisplay(false);
+                }
+            }
+        }
+
+        // --- Handle brightness slider (when uncommented) ---
+        function handleBrightness(value) {
+            document.getElementById('brightness-value').textContent = value + '%';
+            sendCommand('led', parseInt(value));
+
+            // Visual feedback: LED is "on" if brightness > 0
+            updateLedDisplay(value > 0);
+        }
+
+        // ============================================
+        // RGB LED STICK CONTROLS
+        // ============================================
+
+        /**
+         * Send a command to the RGB LED Stick actuator
+         * @param {object} cmd - Command object (e.g., {c:{r,g,b}}, {r:1}, {o:1})
+         */
+        function sendRGBStickCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'rgbstick', cmd);
+            console.log('RGB Stick command:', cmd);
+        }
+
+        /**
+         * Send color from the color picker to all LEDs
+         */
+        function sendRGBColor() {
+            const hex = document.getElementById('rgb-color').value;
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            sendRGBStickCommand({c: {r, g, b}});
+        }
+
+        /**
+         * Update RGB brightness and display value
+         */
+        function updateRGBBrightness(value) {
+            document.getElementById('rgb-brightness-value').textContent = value;
+            sendRGBStickCommand({b: parseInt(value)});
+        }
+
+        // ============================================
+        // CHAINABLE RGB LED CONTROLS
+        // ============================================
+
+        /**
+         * Send a command to the Chainable RGB LED actuator
+         * @param {object} cmd - Command object (e.g., {r:255, g:0, b:0})
+         */
+        function sendChainRGBCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'rgb', cmd);
+            console.log('Chainable RGB command:', cmd);
+        }
+
+        /**
+         * Send color from the color picker to the chainable RGB LED
+         */
+        function sendChainRGBColor() {
+            const hex = document.getElementById('chainrgb-color').value;
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            sendChainRGBCommand({r, g, b});
+        }
+
+        // ============================================
+        // LCD RGB CONTROLS
+        // ============================================
+
+        /**
+         * Send a command to the LCD actuator
+         * @param {object} cmd - Command object (e.g., {t:[...]}, {c:1}, {bl:0})
+         */
+        function sendLCDCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'lcd', cmd);
+            console.log('LCD command:', cmd);
+        }
+
+        /**
+         * Send text to both LCD lines
+         */
+        function sendLCDText() {
+            const line1 = document.getElementById('lcd-line1').value;
+            const line2 = document.getElementById('lcd-line2').value;
+            sendLCDCommand({t: [line1, line2]});
+        }
+
+        /**
+         * Send backlight color to LCD
+         */
+        function sendLCDColor() {
+            const hex = document.getElementById('lcd-color').value;
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            sendLCDCommand({r, g, b});
+        }
+
+        // ============================================
+        // 4-DIGIT DISPLAY CONTROLS
+        // ============================================
+
+        /**
+         * Send a command to the 4-digit display actuator
+         * @param {object} cmd - Command object (e.g., {n:1234}, {t:[12,30]}, {s:"CAFE"})
+         */
+        function sendDigitCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'display', cmd);
+            console.log('4-Digit command:', cmd);
+        }
+
+        /**
+         * Send number to 4-digit display
+         */
+        function sendDigitNumber() {
+            const num = parseInt(document.getElementById('digit-number').value) || 0;
+            sendDigitCommand({n: num});
+        }
+
+        /**
+         * Send time to 4-digit display
+         */
+        function sendDigitTime() {
+            const hours = parseInt(document.getElementById('digit-hours').value) || 0;
+            const mins = parseInt(document.getElementById('digit-mins').value) || 0;
+            sendDigitCommand({t: [hours, mins]});
+        }
+
+        /**
+         * Send text to 4-digit display
+         */
+        function sendDigitText() {
+            const text = document.getElementById('digit-text').value.toUpperCase();
+            sendDigitCommand({s: text});
+        }
+
+        /**
+         * Update 4-digit display brightness
+         */
+        function updateDigitBrightness(value) {
+            document.getElementById('digit-brightness-value').textContent = value;
+            sendDigitCommand({b: parseInt(value)});
+        }
+
+        // ============================================
+        // OLED DISPLAY CONTROLS
+        // ============================================
+
+        /**
+         * Send a command to the OLED actuator
+         * @param {object} cmd - Command object (e.g., {t:[...]}, {c:1}, {progress:50})
+         */
+        function sendOLEDCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'oled', cmd);
+            console.log('OLED command:', cmd);
+        }
+
+        /**
+         * Send multi-line text to OLED (clears screen first)
+         */
+        function sendOLEDText() {
+            const text = document.getElementById('oled-text').value;
+            const lines = text.split('\n').slice(0, 5);  // Max 5 lines
+            sendOLEDCommand({t: lines, c: 1});
+        }
+
+        /**
+         * Update OLED progress display value
+         */
+        function updateOLEDProgress(value) {
+            document.getElementById('oled-progress-value').textContent = value + '%';
+        }
+
+        /**
+         * Send progress bar to OLED (clears screen first)
+         */
+        function sendOLEDProgress() {
+            const progress = parseInt(document.getElementById('oled-progress').value);
+            sendOLEDCommand({progress, c: 1});
+        }
+
+        // ============================================
+        // LED BAR CONTROLS
+        // ============================================
+
+        // Track LED bar state (10 bits)
+        let ledBarBits = 0;
+
+        /**
+         * Send a command to the LED Bar actuator
+         * @param {object} cmd - Command object (e.g., {l:5}, {a:1}, {b:[...]})
+         */
+        function sendLEDBarCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'ledbar', cmd);
+            console.log('LED Bar command:', cmd);
+
+            // Update visual display based on command
+            if (cmd.a !== undefined) {
+                ledBarBits = cmd.a ? 0x3FF : 0;
+                updateLEDBarDisplay();
+            }
+        }
+
+        /**
+         * Update LED bar level from slider
+         */
+        function updateLEDBarLevel(value) {
+            document.getElementById('ledbar-level-value').textContent = value;
+            sendLEDBarCommand({l: parseInt(value)});
+
+            // Update visual - level fills from left
+            ledBarBits = (1 << value) - 1;
+            updateLEDBarDisplay();
+        }
+
+        /**
+         * Toggle individual LED bar segment
+         */
+        function toggleLEDBarSegment(index) {
+            ledBarBits ^= (1 << index);  // Toggle bit
+            updateLEDBarDisplay();
+
+            // Send as individual LED command
+            const state = (ledBarBits >> index) & 1;
+            sendLEDBarCommand({i: index, s: state});
+        }
+
+        /**
+         * Update visual LED bar display based on ledBarBits
+         */
+        function updateLEDBarDisplay() {
+            for (let i = 0; i < 10; i++) {
+                const segment = document.getElementById('led-' + i);
+                if (segment) {
+                    segment.style.opacity = (ledBarBits >> i) & 1 ? '1' : '0.3';
+                    segment.style.boxShadow = (ledBarBits >> i) & 1 ? '0 0 8px currentColor' : 'none';
+                }
+            }
+        }
+
+        // ============================================
+        // VIBRATOR CONTROLS
+        // ============================================
+
+        let vibratorState = false;
+
+        /**
+         * Send a command to the Vibrator actuator
+         * @param {number} value - 0 or 1 (off/on)
+         */
+        function sendVibratorCommand(value) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'vibrator', value);
+            console.log('Vibrator command:', value);
+
+            // Update visual display
+            updateVibratorDisplay(value === 1);
+        }
+
+        /**
+         * Update vibrator visual state
+         */
+        function updateVibratorDisplay(isOn) {
+            vibratorState = isOn;
+            const icon = document.getElementById('vibrator-icon');
+            const status = document.getElementById('vibrator-status');
+            const btnOn = document.getElementById('btn-vibrator-on');
+            const btnOff = document.getElementById('btn-vibrator-off');
+
+            if (icon) icon.className = 'status-icon' + (isOn ? ' on' : '');
+            if (status) status.textContent = isOn ? 'ON' : 'OFF';
+            if (btnOn) btnOn.classList.toggle('active', isOn);
+            if (btnOff) btnOff.classList.toggle('active', !isOn);
+        }
+
+        // ============================================
+        // BUZZER CONTROL
+        // ============================================
+
+        let buzzerTimer = null;  // Timer that sends "off" after the beep
+
+        /**
+         * One short beep: send "on", then "off" after durationMs
+         */
+        function beepBuzzer(durationMs) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'buzzer', 'on');
+            console.log('Buzzer: on for', durationMs, 'ms');
+            updateBuzzerDisplay(true);
+
+            // Stop after durationMs (restart the timer if BEEP is clicked again)
+            clearTimeout(buzzerTimer);
+            buzzerTimer = setTimeout(stopBuzzer, durationMs);
+        }
+
+        /**
+         * Turn the buzzer off right away
+         */
+        function stopBuzzer() {
+            clearTimeout(buzzerTimer);
+            if (!currentDevice) return;
+            ProtoFlow.sendCommand(currentDevice, 'buzzer', 'off');
+            console.log('Buzzer: off');
+            updateBuzzerDisplay(false);
+        }
+
+        /**
+         * Update buzzer visual state
+         */
+        function updateBuzzerDisplay(isOn) {
+            const icon = document.getElementById('buzzer-icon');
+            const status = document.getElementById('buzzer-status');
+            if (icon) icon.className = 'status-icon' + (isOn ? ' on' : '');
+            if (status) status.textContent = isOn ? 'BEEPING' : 'OFF';
+        }
+
+        // ============================================
+        // SPEAKER CONTROL
+        // ============================================
+
+        const NOTE_LENGTH_MS = 500;  // TRY: 1000 for longer notes (max 5000)
+        let speakerTimer = null;     // Timer that resets the status after a note
+
+        /**
+         * Play one note: the speaker gets a pitch (Hz) and a duration (ms)
+         * and stops by itself when the duration is over
+         */
+        function playSpeakerNote(noteName, frequency) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'speaker', {
+                frequency: frequency,
+                duration: NOTE_LENGTH_MS
+            });
+            console.log('Speaker:', noteName, frequency + ' Hz');
+            updateSpeakerDisplay('♪ ' + noteName + ' (' + frequency + ' Hz)');
+
+            // Show "Silent" again when the note is over
+            clearTimeout(speakerTimer);
+            speakerTimer = setTimeout(() => updateSpeakerDisplay(null), NOTE_LENGTH_MS);
+        }
+
+        /**
+         * Stop the speaker right away (frequency 0 = stop)
+         */
+        function stopSpeaker() {
+            clearTimeout(speakerTimer);
+            if (!currentDevice) return;
+            ProtoFlow.sendCommand(currentDevice, 'speaker', { frequency: 0, duration: 0 });
+            console.log('Speaker: stop');
+            updateSpeakerDisplay(null);
+        }
+
+        /**
+         * Update speaker visual state (text = what is playing, null = silent)
+         */
+        function updateSpeakerDisplay(text) {
+            const icon = document.getElementById('speaker-icon');
+            const status = document.getElementById('speaker-status');
+            if (icon) icon.className = 'status-icon' + (text ? ' on' : '');
+            if (status) status.textContent = text || 'Silent';
+        }
+
+        // ============================================
+        // CONNECTION HANDLING (Same as Week 1)
+        // ============================================
+
+        // --- Connect Button Handler ---
+        connectBtn.addEventListener('click', () => {
+            if (!isConnected) {
+                updateStatus('connecting', 'Connecting...');
+                connectBtn.disabled = true;
+                ProtoFlow.connect();
+            } else {
+                ProtoFlow.disconnect();
+                isConnected = false;
+                updateStatus('', 'Disconnected');
+                connectBtn.textContent = 'Connect';
+                devicePicker.classList.remove('visible');
+                controlPanel.classList.remove('visible');
+            }
+        });
+
+        // --- Device Selection Handler ---
+        deviceSelect.addEventListener('change', (e) => {
+            const uuid = e.target.value;
+            if (!uuid) return;
+
+            const option = deviceSelect.options[deviceSelect.selectedIndex];
+            const name = option.textContent;
+
+            // Subscribe to this device
+            ProtoFlow.subscribeToDevice(uuid);
+            currentDevice = uuid;
+
+            // Look up device info from stored list
+            const deviceInfo = devicesList.find(d => d.uuid === uuid);
+            console.log('Selected device:', deviceInfo);
+
+            // Show only cards for this device's actuators
+            showActuatorCards(deviceInfo);
+
+            // Show control panel
+            deviceName.textContent = name;
+            controlPanel.classList.add('visible');
+            updateStatus('connected', 'Ready to control ' + name);
+
+            // Reset LED display
+            updateLedDisplay(false);
+        });
+
+        // ============================================
+        // PROTOFLOW EVENT HANDLERS
+        // ============================================
+
+        // When connected
+        ProtoFlow.on('connect', () => {
+            isConnected = true;
+            updateStatus('connected', 'Connected! Select your device');
+            connectBtn.textContent = 'Disconnect';
+            connectBtn.disabled = false;
+        });
+
+        // When device list received
+        ProtoFlow.on('devices', (devices) => {
+            // Store devices list for actuator lookup
+            devicesList = devices;
+
+            deviceSelect.innerHTML = '<option value="">Select your device...</option>';
+
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.uuid;
+                option.textContent = device.deviceName || device.name || device.uuid.substring(0, 8);
+                deviceSelect.appendChild(option);
+            });
+
+            devicePicker.classList.add('visible');
+
+            // Auto-select if only one device
+            if (devices.length === 1) {
+                deviceSelect.value = devices[0].uuid;
+                deviceSelect.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // When actuator state is received (device confirms the change)
+        ProtoFlow.on('actuator', (data) => {
+            if (data.device !== currentDevice) return;
+
+            console.log('Actuator update:', data);
+
+            // Update display based on confirmed state
+            if (data.actuator === 'led') {
+                updateLedDisplay(data.value === 'on' || data.value === true || data.value > 0);
+            }
+        });
+
+        // When disconnected
+        ProtoFlow.on('disconnect', () => {
+            isConnected = false;
+            updateStatus('', 'Disconnected');
+            connectBtn.textContent = 'Connect';
+            connectBtn.disabled = false;
+            devicePicker.classList.remove('visible');
+            controlPanel.classList.remove('visible');
+        });
+
+        // When error occurs
+        ProtoFlow.on('error', (error) => {
+            console.error('ProtoFlow error:', error);
+            updateStatus('', 'Error: ' + error.message);
+            connectBtn.disabled = false;
+        });
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+
+        /**
+         * Sleep for a specified time (useful for sequences)
+         * Usage: await sleep(1000); // wait 1 second
+         */
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        /**
+         * TRY: Create a blink sequence!
+         * Uncomment and call this function:
+         * 
+         * async function blinkLED(times = 3) {
+         *     for (let i = 0; i < times; i++) {
+         *         sendCommand('led', 'on');
+         *         await sleep(300);
+         *         sendCommand('led', 'off');
+         *         await sleep(300);
+         *     }
+         * }
+         */
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- ============================================ -->
+    <!-- SECTION 1: PAGE SETTINGS                     -->
+    <!-- This section contains basic page information -->
+    <!-- ============================================ -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProtoFlow Bidirectional</title>  <!-- TRY: Change this to your project name! -->
+
+    <!-- ProtoFlow Server Configuration -->
+    <meta name="protoflow-websocket-url" content="wss://YOUR-TEAM.proto.aalto.fi/ws/app">
+
+    <style>
+        /* ============================================ */
+        /* SECTION 2: STYLES (how things look)         */
+        /* CSS controls colors, sizes, and layout      */
+        /* ============================================ */
+
+        /* --- CSS Variables (easy to change colors!) --- */
+        :root {
+            --accent-color: #4a90d9;    /* TRY: #48bb78 for green, #9f7aea for purple */
+            --accent-hover: #3182ce;
+            --success-color: #48bb78;
+            --danger-color: #e53e3e;
+            --bg-color: #f0f4f8;        /* TRY: #1a1a2e for dark mode */
+            --text-color: #333;         /* TRY: #ffffff for dark mode */
+            --card-bg: white;           /* TRY: #2d2d44 for dark mode */
+            --muted-color: #718096;
+        }
+
+        /* --- Page Reset --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* --- Main Container --- */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* --- Page Header --- */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--muted-color);
+            font-size: 14px;
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: var(--muted-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        /* --- Connection Status --- */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #cbd5e0;
+        }
+
+        .status-dot.connected {
+            background: var(--success-color);
+        }
+
+        .status-dot.connecting {
+            background: #ed8936;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: var(--muted-color);
+        }
+
+        /* --- Buttons --- */
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- Device Picker --- */
+        .device-picker {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .device-picker.visible {
+            display: block;
+        }
+
+        .device-picker select {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .device-picker select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        /* --- Bidirectional Panel (hidden until connected) --- */
+        .bidir-panel {
+            display: none;
+        }
+
+        .bidir-panel.visible {
+            display: block;
+        }
+
+        /* --- Two Column Layout --- */
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 500px) {
+            .two-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* --- Sensor Display --- */
+        .sensor-section {
+            text-align: center;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 12px;
+        }
+
+        .sensor-label {
+            font-size: 12px;
+            color: var(--muted-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .sensor-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #2d3748;
+            line-height: 1;
+        }
+
+        .sensor-unit {
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--muted-color);
+        }
+
+        /* --- Button Sensor State --- */
+        .button-indicator {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted-color);
+            margin: 0 auto;
+            transition: all 0.15s ease;
+        }
+
+        .button-indicator.pressed {
+            background: var(--success-color);
+            color: white;
+            transform: scale(0.95);
+            box-shadow: 0 0 0 8px rgba(72, 187, 120, 0.2);
+        }
+
+        /* --- Actuator Control --- */
+        .actuator-section {
+            text-align: center;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 12px;
+        }
+
+        .actuator-label {
+            font-size: 12px;
+            color: var(--muted-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-on {
+            background: var(--success-color);
+            color: white;
+            padding: 12px 24px;
+        }
+
+        .btn-on:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+        }
+
+        .btn-on.active {
+            box-shadow: 0 0 15px rgba(72, 187, 120, 0.5);
+        }
+
+        .btn-off {
+            background: #718096;
+            color: white;
+            padding: 12px 24px;
+        }
+
+        .btn-off:hover {
+            background: #4a5568;
+            transform: translateY(-1px);
+        }
+
+        /* --- LED Status Icon --- */
+        .led-status {
+            font-size: 48px;
+            margin-bottom: 8px;
+            transition: all 0.15s ease;
+        }
+
+        .led-status.on {
+            filter: drop-shadow(0 0 15px #ffd700);
+        }
+
+        /* --- Actuator Cards --- */
+        .actuator-card {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .actuator-card-title {
+            font-size: 12px;
+            color: var(--muted-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        /* --- LED Bar Visual Display --- */
+        .ledbar-visual {
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+            margin: 12px 0;
+        }
+
+        .ledbar-segment {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .ledbar-segment:hover {
+            transform: scale(1.1);
+        }
+
+        /* --- Slider in actuator card --- */
+        .actuator-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            -webkit-appearance: none;
+            margin: 8px 0;
+        }
+
+        .actuator-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+        }
+
+        /* --- Joystick Display --- */
+        .joystick-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            background: #e2e8f0;
+            border-radius: 12px;
+            border: 2px solid #cbd5e0;
+            overflow: hidden;
+        }
+
+        .joystick-track {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+        }
+
+        .joystick-crosshair {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        .joystick-crosshair::before,
+        .joystick-crosshair::after {
+            content: '';
+            position: absolute;
+            background: #cbd5e0;
+        }
+
+        .joystick-crosshair::before {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+        }
+
+        .joystick-crosshair::after {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+        }
+
+        .joystick-dot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            left: 50%;
+            top: 50%;
+            box-shadow: 0 2px 8px rgba(74, 144, 217, 0.4);
+            transition: left 0.08s ease, top 0.08s ease;
+            z-index: 1;
+        }
+
+        .joystick-dot.pressed {
+            background: var(--success-color);
+            box-shadow: 0 2px 12px rgba(72, 187, 120, 0.6);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .joystick-values {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--muted-color);
+        }
+
+        .joystick-value {
+            text-align: center;
+        }
+
+        .joystick-value span {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .joystick-button {
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        .joystick-button-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #e2e8f0;
+            color: var(--muted-color);
+            transition: all 0.15s ease;
+        }
+
+        .joystick-button-indicator.pressed {
+            background: var(--success-color);
+            color: white;
+        }
+
+        /* --- RGB LED Stick Visual Display --- */
+        .rgbstick-visual {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin: 12px 0;
+        }
+
+        .rgbstick-led {
+            width: 18px;
+            height: 24px;
+            border-radius: 4px;
+            background: #333;
+            border: 1px solid #555;
+            transition: all 0.15s ease;
+        }
+
+        .rgbstick-led.on {
+            box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+        }
+
+        /* --- Color Picker Controls --- */
+        .color-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 8px 0;
+        }
+
+        .color-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-label {
+            width: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted-color);
+        }
+
+        .color-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .color-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #666;
+            cursor: pointer;
+        }
+
+        .color-slider.red {
+            background: linear-gradient(to right, #000, #f00);
+        }
+
+        .color-slider.green {
+            background: linear-gradient(to right, #000, #0f0);
+        }
+
+        .color-slider.blue {
+            background: linear-gradient(to right, #000, #00f);
+        }
+
+        .color-value {
+            width: 30px;
+            font-size: 11px;
+            text-align: right;
+            color: var(--muted-color);
+        }
+
+        .color-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: #000;
+            border: 2px solid #e2e8f0;
+            margin: 0 auto 8px;
+            transition: all 0.15s ease;
+        }
+
+        .color-preview.on {
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        /* --- Progress Bar --- */
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), #63b3ed);
+            border-radius: 4px;
+            transition: width 0.15s ease;
+            width: 0%;
+        }
+
+        /* --- Slider Control --- */
+        .slider-control {
+            margin-top: 16px;
+        }
+
+        .slider-control input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e2e8f0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+        }
+
+        /* --- Device Info --- */
+        .device-info {
+            font-size: 12px;
+            color: #a0aec0;
+            text-align: center;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #a0aec0;
+            font-size: 12px;
+        }
+
+        footer a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================ -->
+    <!-- SECTION 3: CONTENT (what you see)           -->
+    <!-- HTML defines the structure of the page      -->
+    <!-- ============================================ -->
+
+    <div class="container">
+        <header>
+            <h1>Bidirectional Control</h1>  <!-- TRY: Change this text! -->
+            <p class="subtitle">Read sensors AND control actuators</p>
+        </header>
+
+        <!-- Connection Card -->
+        <div class="card">
+            <div class="card-title">Connection</div>
+
+            <div class="status-bar">
+                <div class="status-dot" id="status-dot"></div>
+                <span class="status-text" id="status-text">Click Connect to start</span>
+            </div>
+
+            <button class="btn-primary" id="connect-btn">Connect</button>
+
+            <div class="device-picker" id="device-picker">
+                <select id="device-select">
+                    <option value="">Select your device...</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Bidirectional Panel (appears after selecting device) -->
+        <div class="bidir-panel" id="bidir-panel">
+
+            <!-- Two-way Communication Card -->
+            <div class="card">
+                <div class="card-title">Two-Way Communication</div>
+
+                <div class="two-columns">
+                    <!-- LEFT: Sensor Input (from ESP32) -->
+                    <div class="sensor-section">
+                        <div class="sensor-label">Sensor Input</div>
+
+                        <!-- Slider/Analog Display -->
+                        <div id="slider-display" style="display: none;">
+                            <div class="sensor-value">
+                                <span id="slider-value">--</span><span class="sensor-unit">%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="slider-fill"></div>
+                            </div>
+                        </div>
+
+                        <!-- Button Display -->
+                        <div id="button-display" style="display: none;">
+                            <div class="button-indicator" id="button-indicator">
+                                RELEASED
+                            </div>
+                        </div>
+
+                        <!-- Joystick Display -->
+                        <div id="joystick-display" style="display: none;">
+                            <div class="joystick-container">
+                                <div class="joystick-crosshair"></div>
+                                <div class="joystick-track">
+                                    <div class="joystick-dot" id="joystick-dot"></div>
+                                </div>
+                            </div>
+                            <div class="joystick-values">
+                                <div class="joystick-value">
+                                    X<span id="joystick-x-value">50</span>
+                                </div>
+                                <div class="joystick-value">
+                                    Y<span id="joystick-y-value">50</span>
+                                </div>
+                            </div>
+                            <div class="joystick-button" id="joystick-button-container" style="display: none;">
+                                <div class="joystick-button-indicator" id="joystick-button-indicator">
+                                    BUTTON
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Generic Display -->
+                        <div id="generic-sensor-display">
+                            <div class="sensor-value">
+                                <span id="generic-value">--</span>
+                            </div>
+                            <p style="color: var(--muted-color); font-size: 12px; margin-top: 8px;">
+                                Waiting for sensor data...
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Actuator Output (to ESP32) -->
+                    <div class="actuator-section">
+                        <div class="actuator-label">Actuator Output</div>
+
+                        <!-- LED Control -->
+                        <div id="led-control" class="actuator-card" style="display: none;">
+                            <div class="actuator-card-title">💡 LED</div>
+                            <div class="led-status" id="led-icon">💡</div>
+                            <div class="button-group">
+                                <button class="btn-on" id="btn-on" onclick="sendActuatorCommand('led', 1)">ON</button>
+                                <button class="btn-off" id="btn-off" onclick="sendActuatorCommand('led', 0)">OFF</button>
+                            </div>
+                        </div>
+
+                        <!-- Vibrator Control -->
+                        <div id="vibrator-control" class="actuator-card" style="display: none;">
+                            <div class="actuator-card-title">📳 Vibrator</div>
+                            <div class="led-status" id="vibrator-icon">📳</div>
+                            <div class="button-group">
+                                <button class="btn-on" id="btn-vibrator-on" onclick="sendActuatorCommand('vibrator', 1)">ON</button>
+                                <button class="btn-off" id="btn-vibrator-off" onclick="sendActuatorCommand('vibrator', 0)">OFF</button>
+                            </div>
+                        </div>
+
+                        <!-- LED Bar Control -->
+                        <div id="ledbar-control" class="actuator-card" style="display: none;">
+                            <div class="actuator-card-title">📊 LED Bar</div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 11px; color: var(--muted-color);">Level:</span>
+                                <input type="range" class="actuator-slider" id="ledbar-level" min="0" max="10" value="0"
+                                       oninput="updateLEDBarLevel(this.value)" style="flex:1;">
+                                <span id="ledbar-level-value" style="font-size: 14px; font-weight: 600; min-width: 20px;">0</span>
+                            </div>
+                            <div class="ledbar-visual">
+                                <div class="ledbar-segment" id="bidir-led-0" onclick="toggleLEDBarSegment(0)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-1" onclick="toggleLEDBarSegment(1)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-2" onclick="toggleLEDBarSegment(2)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-3" onclick="toggleLEDBarSegment(3)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-4" onclick="toggleLEDBarSegment(4)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-5" onclick="toggleLEDBarSegment(5)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-6" onclick="toggleLEDBarSegment(6)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-7" onclick="toggleLEDBarSegment(7)" style="background:#38a169;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-8" onclick="toggleLEDBarSegment(8)" style="background:#ecc94b;opacity:0.3;"></div>
+                                <div class="ledbar-segment" id="bidir-led-9" onclick="toggleLEDBarSegment(9)" style="background:#e53e3e;opacity:0.3;"></div>
+                            </div>
+                            <div class="button-group">
+                                <button class="btn-on" onclick="sendLEDBarCommand({a:1})" style="padding: 8px 16px; font-size: 12px;">All On</button>
+                                <button class="btn-off" onclick="sendLEDBarCommand({a:0})" style="padding: 8px 16px; font-size: 12px;">All Off</button>
+                            </div>
+                        </div>
+
+                        <!-- RGB LED Stick Control -->
+                        <div id="rgbstick-control" class="actuator-card" style="display: none;">
+                            <div class="actuator-card-title">🌈 RGB LED Stick</div>
+
+                            <!-- LED Visualization -->
+                            <div class="rgbstick-visual">
+                                <div class="rgbstick-led" id="rgbstick-led-0"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-1"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-2"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-3"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-4"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-5"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-6"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-7"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-8"></div>
+                                <div class="rgbstick-led" id="rgbstick-led-9"></div>
+                            </div>
+
+                            <!-- Color Preview -->
+                            <div class="color-preview" id="rgbstick-preview"></div>
+
+                            <!-- RGB Sliders -->
+                            <div class="color-controls">
+                                <div class="color-row">
+                                    <span class="color-label">R</span>
+                                    <input type="range" class="color-slider red" id="rgbstick-r" min="0" max="255" value="255"
+                                           oninput="updateRGBStickColor()">
+                                    <span class="color-value" id="rgbstick-r-value">255</span>
+                                </div>
+                                <div class="color-row">
+                                    <span class="color-label">G</span>
+                                    <input type="range" class="color-slider green" id="rgbstick-g" min="0" max="255" value="0"
+                                           oninput="updateRGBStickColor()">
+                                    <span class="color-value" id="rgbstick-g-value">0</span>
+                                </div>
+                                <div class="color-row">
+                                    <span class="color-label">B</span>
+                                    <input type="range" class="color-slider blue" id="rgbstick-b" min="0" max="255" value="0"
+                                           oninput="updateRGBStickColor()">
+                                    <span class="color-value" id="rgbstick-b-value">0</span>
+                                </div>
+                            </div>
+
+                            <!-- Brightness slider -->
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                                <span style="font-size: 11px; color: var(--muted-color);">Brightness:</span>
+                                <input type="range" class="actuator-slider" id="rgbstick-brightness" min="0" max="255" value="128"
+                                       oninput="sendRGBStickBrightness(this.value)" style="flex:1;">
+                                <span id="rgbstick-brightness-value" style="font-size: 11px; min-width: 25px;">128</span>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="button-group" style="margin-top: 12px;">
+                                <button class="btn-on" onclick="sendRGBStickCommand({r:1})" style="padding: 8px 12px; font-size: 12px;">Rainbow</button>
+                                <button class="btn-primary" onclick="applyRGBStickColor()" style="padding: 8px 12px; font-size: 12px;">Apply</button>
+                                <button class="btn-off" onclick="sendRGBStickCommand({o:1})" style="padding: 8px 12px; font-size: 12px;">Off</button>
+                            </div>
+                        </div>
+
+                        <!-- Slider Control (for PWM actuators) -->
+                        <div id="pwm-control" class="actuator-card" style="display: none;">
+                            <div class="actuator-card-title">💡 PWM LED</div>
+                            <div class="slider-control">
+                                <input type="range" id="pwm-slider" min="0" max="100" value="0"
+                                       oninput="handlePWMSlider(this.value)">
+                            </div>
+                            <div class="sensor-value" style="font-size: 24px; margin-top: 8px;">
+                                <span id="pwm-value">0</span><span class="sensor-unit">%</span>
+                            </div>
+                        </div>
+
+                        <!-- No actuator message -->
+                        <div id="no-actuator-msg" style="text-align: center; color: var(--muted-color); padding: 20px;">
+                            <p>Select a device to see available actuators</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="device-info">
+                    Connected to: <span id="device-name">—</span>
+                </div>
+            </div>
+
+            <!-- Data Flow Visualization -->
+            <div class="card">
+                <div class="card-title">Data Flow</div>
+                <div style="text-align: center; padding: 10px;">
+                    <div style="display: flex; justify-content: space-around; align-items: center;">
+                        <div>
+                            <div style="font-size: 24px;">📟</div>
+                            <div style="font-size: 12px; color: var(--muted-color);">ESP32</div>
+                        </div>
+                        <div style="flex: 1; padding: 0 10px;">
+                            <div id="flow-sensor" style="color: var(--accent-color); font-size: 12px;">
+                                ← sensor data ←
+                            </div>
+                            <div id="flow-actuator" style="color: var(--success-color); font-size: 12px; margin-top: 4px;">
+                                → commands →
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px;">🌐</div>
+                            <div style="font-size: 12px; color: var(--muted-color);">Web App</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TRY: Add your own custom controls here! -->
+            <!--
+            <div class="card">
+                <div class="card-title">My Custom Control</div>
+                <button class="btn-primary" onclick="myCustomFunction()">Do Something</button>
+            </div>
+            -->
+
+        </div>
+
+        <footer>
+            <p>ProtoFlow - Bidirectional IoT Communication</p>
+            <p>Combine sensor input with actuator output!</p>
+        </footer>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SECTION 4: BEHAVIOR (how it works)          -->
+    <!-- JavaScript makes the page interactive       -->
+    <!-- ============================================ -->
+
+    <!-- Load ProtoFlow library -->
+    <script src="https://proto.aalto.fi/protoflow.min.js"></script>
+
+    <script>
+        // ============================================
+        // JAVASCRIPT: Making the page interactive
+        // ============================================
+
+        // --- Get references to HTML elements ---
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const connectBtn = document.getElementById('connect-btn');
+        const devicePicker = document.getElementById('device-picker');
+        const deviceSelect = document.getElementById('device-select');
+        const bidirPanel = document.getElementById('bidir-panel');
+        const deviceNameEl = document.getElementById('device-name');
+
+        // Sensor displays
+        const sliderDisplay = document.getElementById('slider-display');
+        const buttonDisplay = document.getElementById('button-display');
+        const joystickDisplay = document.getElementById('joystick-display');
+        const genericDisplay = document.getElementById('generic-sensor-display');
+
+        // Actuator elements
+        const ledIcon = document.getElementById('led-icon');
+        const btnOn = document.getElementById('btn-on');
+        const btnOff = document.getElementById('btn-off');
+
+        // Flow indicators
+        const flowSensor = document.getElementById('flow-sensor');
+        const flowActuator = document.getElementById('flow-actuator');
+
+        // Track state
+        let isConnected = false;
+        let currentDevice = null;
+        let currentDeviceInfo = null;
+        let ledState = false;
+        let devicesList = [];  // Store devices list to avoid async lookups
+        let ledBarBits = 0;    // Track LED bar state (10 bits)
+        let joystickState = { x: 50, y: 50, button: false };  // Track joystick state
+        let rgbStickState = { r: 255, g: 0, b: 0, brightness: 128, leds: Array(10).fill({r:0,g:0,b:0}) };  // Track RGB stick state
+
+        // Mapping from actuator names to control element IDs
+        const actuatorControlMap = {
+            'led': 'led-control',
+            'vibrator': 'vibrator-control',
+            'ledbar': 'ledbar-control',
+            'rgbstick': 'rgbstick-control',
+            'pwm_led': 'pwm-control'
+        };
+
+        // Get all actuator control IDs for hiding
+        const allActuatorControls = Object.values(actuatorControlMap);
+
+        // ============================================
+        // STATUS UPDATES
+        // ============================================
+
+        function updateStatus(state, message) {
+            statusDot.className = 'status-dot ' + state;
+            statusText.textContent = message;
+        }
+
+        // ============================================
+        // SENSOR DISPLAY (Data FROM ESP32)
+        // ============================================
+
+        function hideAllSensorDisplays() {
+            sliderDisplay.style.display = 'none';
+            buttonDisplay.style.display = 'none';
+            joystickDisplay.style.display = 'none';
+            genericDisplay.style.display = 'none';
+        }
+
+        function showSensorDisplay(sensorName) {
+            hideAllSensorDisplays();
+
+            const name = sensorName.toLowerCase();
+            if (name.includes('joystick')) {
+                // Show joystick display for any joystick_x, joystick_y, joystick_button
+                joystickDisplay.style.display = 'block';
+                // Only show button indicator if this is the button sensor
+                if (name.includes('button')) {
+                    document.getElementById('joystick-button-container').style.display = 'block';
+                }
+            } else if (name.includes('slider') || name.includes('rotary') || name.includes('potentiometer')) {
+                sliderDisplay.style.display = 'block';
+            } else if (name.includes('button')) {
+                buttonDisplay.style.display = 'block';
+            } else {
+                genericDisplay.style.display = 'block';
+            }
+        }
+
+        function updateSensorValue(sensor, value) {
+            const name = sensor.toLowerCase();
+
+            // Flash the flow indicator
+            flowSensor.style.fontWeight = 'bold';
+            setTimeout(() => flowSensor.style.fontWeight = 'normal', 200);
+
+            // Handle joystick sensors
+            if (name.includes('joystick')) {
+                const dot = document.getElementById('joystick-dot');
+
+                if (name.endsWith('_x')) {
+                    joystickState.x = typeof value === 'number' ? value : parseFloat(value) || 50;
+                    document.getElementById('joystick-x-value').textContent = joystickState.x.toFixed(0);
+                } else if (name.endsWith('_y')) {
+                    joystickState.y = typeof value === 'number' ? value : parseFloat(value) || 50;
+                    document.getElementById('joystick-y-value').textContent = joystickState.y.toFixed(0);
+                } else if (name.includes('button')) {
+                    joystickState.button = value === 1 || value === true || value === '1';
+                    const indicator = document.getElementById('joystick-button-indicator');
+                    indicator.textContent = joystickState.button ? 'PRESSED' : 'BUTTON';
+                    indicator.className = 'joystick-button-indicator' + (joystickState.button ? ' pressed' : '');
+                    document.getElementById('joystick-button-container').style.display = 'block';
+                    // Also update dot appearance when button pressed
+                    dot.className = 'joystick-dot' + (joystickState.button ? ' pressed' : '');
+                }
+
+                // Update joystick dot position (X: 0-100 left-right, Y: 0-100 bottom-top)
+                const xPercent = Math.max(0, Math.min(100, joystickState.x));
+                const yPercent = Math.max(0, Math.min(100, joystickState.y));
+                dot.style.left = xPercent + '%';
+                dot.style.top = (100 - yPercent) + '%';  // Invert Y so 100 is at top
+            }
+            else if (name.includes('slider') || name.includes('rotary') || name.includes('potentiometer')) {
+                const percent = typeof value === 'number' ? value : parseFloat(value) || 0;
+                document.getElementById('slider-value').textContent = percent.toFixed(1);
+                document.getElementById('slider-fill').style.width = percent + '%';
+            }
+            else if (name.includes('button')) {
+                const pressed = value === 1 || value === true || value === '1';
+                const indicator = document.getElementById('button-indicator');
+                indicator.textContent = pressed ? 'PRESSED' : 'RELEASED';
+                indicator.className = 'button-indicator' + (pressed ? ' pressed' : '');
+            }
+            else {
+                document.getElementById('generic-value').textContent =
+                    typeof value === 'number' ? value.toFixed(2) : String(value);
+            }
+        }
+
+        // ============================================
+        // ACTUATOR CONTROL (Commands TO ESP32)
+        // ============================================
+
+        /**
+         * Show only actuator controls for the device's actuators
+         */
+        function showActuatorControls(deviceInfo) {
+            // Hide all actuator controls first
+            allActuatorControls.forEach(controlId => {
+                const control = document.getElementById(controlId);
+                if (control) control.style.display = 'none';
+            });
+
+            // Hide the "no actuator" message
+            const noActuatorMsg = document.getElementById('no-actuator-msg');
+
+            // If no device info, show the message
+            if (!deviceInfo || !deviceInfo.actuators || deviceInfo.actuators.length === 0) {
+                if (noActuatorMsg) noActuatorMsg.style.display = 'block';
+                console.log('No actuator info available');
+                return;
+            }
+
+            // Hide the message since we have actuators
+            if (noActuatorMsg) noActuatorMsg.style.display = 'none';
+
+            // Show controls matching device's actuators
+            deviceInfo.actuators.forEach(actuator => {
+                const controlId = actuatorControlMap[actuator.name];
+                if (controlId) {
+                    const control = document.getElementById(controlId);
+                    if (control) {
+                        control.style.display = 'block';
+                        console.log('Showing control for actuator:', actuator.name);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Send a command to an actuator
+         */
+        function sendActuatorCommand(actuatorName, value) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+
+            // Send the command
+            ProtoFlow.sendCommand(currentDevice, actuatorName, value);
+            console.log(`Sent: ${actuatorName} = ${value}`);
+
+            // Flash the flow indicator
+            flowActuator.style.fontWeight = 'bold';
+            setTimeout(() => flowActuator.style.fontWeight = 'normal', 200);
+
+            // Update display based on actuator type
+            if (actuatorName === 'led') {
+                updateLedDisplay(value === 1 || value === true || value > 0);
+            } else if (actuatorName === 'vibrator') {
+                updateVibratorDisplay(value === 1 || value === true || value > 0);
+            }
+        }
+
+        function updateLedDisplay(isOn) {
+            ledState = isOn;
+            ledIcon.className = 'led-status' + (isOn ? ' on' : '');
+            btnOn.className = 'btn-on' + (isOn ? ' active' : '');
+        }
+
+        function updateVibratorDisplay(isOn) {
+            const vibratorIcon = document.getElementById('vibrator-icon');
+            const btnVibratorOn = document.getElementById('btn-vibrator-on');
+            const btnVibratorOff = document.getElementById('btn-vibrator-off');
+
+            if (vibratorIcon) vibratorIcon.className = 'led-status' + (isOn ? ' on' : '');
+            if (btnVibratorOn) btnVibratorOn.classList.toggle('active', isOn);
+            if (btnVibratorOff) btnVibratorOff.classList.toggle('active', !isOn);
+        }
+
+        function handlePWMSlider(value) {
+            document.getElementById('pwm-value').textContent = value;
+            sendActuatorCommand('pwm_led', parseInt(value));
+        }
+
+        // ============================================
+        // LED BAR CONTROLS
+        // ============================================
+
+        /**
+         * Send a command to the LED Bar actuator
+         */
+        function sendLEDBarCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'ledbar', cmd);
+            console.log('LED Bar command:', cmd);
+
+            // Flash the flow indicator
+            flowActuator.style.fontWeight = 'bold';
+            setTimeout(() => flowActuator.style.fontWeight = 'normal', 200);
+
+            // Update visual display based on command
+            if (cmd.a !== undefined) {
+                ledBarBits = cmd.a ? 0x3FF : 0;
+                updateLEDBarDisplay();
+            }
+        }
+
+        /**
+         * Update LED bar level from slider
+         */
+        function updateLEDBarLevel(value) {
+            document.getElementById('ledbar-level-value').textContent = value;
+            sendLEDBarCommand({l: parseInt(value)});
+
+            // Update visual - level fills from left
+            ledBarBits = (1 << value) - 1;
+            updateLEDBarDisplay();
+        }
+
+        /**
+         * Toggle individual LED bar segment
+         */
+        function toggleLEDBarSegment(index) {
+            ledBarBits ^= (1 << index);  // Toggle bit
+            updateLEDBarDisplay();
+
+            // Send as individual LED command
+            const state = (ledBarBits >> index) & 1;
+            sendLEDBarCommand({i: index, s: state});
+        }
+
+        /**
+         * Update visual LED bar display based on ledBarBits
+         */
+        function updateLEDBarDisplay() {
+            for (let i = 0; i < 10; i++) {
+                const segment = document.getElementById('bidir-led-' + i);
+                if (segment) {
+                    segment.style.opacity = (ledBarBits >> i) & 1 ? '1' : '0.3';
+                    segment.style.boxShadow = (ledBarBits >> i) & 1 ? '0 0 6px currentColor' : 'none';
+                }
+            }
+        }
+
+        // ============================================
+        // RGB LED STICK CONTROLS
+        // ============================================
+
+        /**
+         * Update RGB stick color from sliders (preview only)
+         */
+        function updateRGBStickColor() {
+            const r = parseInt(document.getElementById('rgbstick-r').value);
+            const g = parseInt(document.getElementById('rgbstick-g').value);
+            const b = parseInt(document.getElementById('rgbstick-b').value);
+
+            // Update value displays
+            document.getElementById('rgbstick-r-value').textContent = r;
+            document.getElementById('rgbstick-g-value').textContent = g;
+            document.getElementById('rgbstick-b-value').textContent = b;
+
+            // Update preview
+            const preview = document.getElementById('rgbstick-preview');
+            preview.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+            preview.style.color = `rgb(${r}, ${g}, ${b})`;
+            preview.className = 'color-preview' + ((r || g || b) ? ' on' : '');
+
+            // Store state
+            rgbStickState.r = r;
+            rgbStickState.g = g;
+            rgbStickState.b = b;
+        }
+
+        /**
+         * Apply the current color to all LEDs on the RGB stick
+         */
+        function applyRGBStickColor() {
+            const { r, g, b } = rgbStickState;
+            sendRGBStickCommand({ c: { r, g, b } });
+
+            // Update visualization - all LEDs same color
+            updateRGBStickVisual(r, g, b);
+        }
+
+        /**
+         * Send brightness command to RGB stick
+         */
+        function sendRGBStickBrightness(value) {
+            document.getElementById('rgbstick-brightness-value').textContent = value;
+            rgbStickState.brightness = parseInt(value);
+            sendRGBStickCommand({ b: parseInt(value) });
+        }
+
+        /**
+         * Send a command to the RGB LED Stick actuator
+         */
+        function sendRGBStickCommand(cmd) {
+            if (!currentDevice) {
+                console.warn('No device selected!');
+                return;
+            }
+            ProtoFlow.sendCommand(currentDevice, 'rgbstick', cmd);
+            console.log('RGB Stick command:', cmd);
+
+            // Flash the flow indicator
+            flowActuator.style.fontWeight = 'bold';
+            setTimeout(() => flowActuator.style.fontWeight = 'normal', 200);
+
+            // Update visual based on command
+            if (cmd.o === 1) {
+                // Off command
+                updateRGBStickVisual(0, 0, 0);
+            } else if (cmd.r === 1) {
+                // Rainbow command
+                updateRGBStickRainbow();
+            }
+        }
+
+        /**
+         * Update RGB stick visual - all LEDs same color
+         */
+        function updateRGBStickVisual(r, g, b) {
+            const colorStr = `rgb(${r}, ${g}, ${b})`;
+            const isOn = r > 0 || g > 0 || b > 0;
+
+            for (let i = 0; i < 10; i++) {
+                const led = document.getElementById('rgbstick-led-' + i);
+                if (led) {
+                    led.style.backgroundColor = colorStr;
+                    led.style.color = colorStr;
+                    led.className = 'rgbstick-led' + (isOn ? ' on' : '');
+                    rgbStickState.leds[i] = { r, g, b };
+                }
+            }
+        }
+
+        /**
+         * Update RGB stick visual with rainbow effect
+         */
+        function updateRGBStickRainbow() {
+            const colors = [
+                { r: 255, g: 0, b: 0 },      // Red
+                { r: 255, g: 127, b: 0 },    // Orange
+                { r: 255, g: 255, b: 0 },    // Yellow
+                { r: 127, g: 255, b: 0 },    // Yellow-Green
+                { r: 0, g: 255, b: 0 },      // Green
+                { r: 0, g: 255, b: 127 },    // Green-Cyan
+                { r: 0, g: 255, b: 255 },    // Cyan
+                { r: 0, g: 127, b: 255 },    // Cyan-Blue
+                { r: 0, g: 0, b: 255 },      // Blue
+                { r: 127, g: 0, b: 255 }     // Purple
+            ];
+
+            for (let i = 0; i < 10; i++) {
+                const led = document.getElementById('rgbstick-led-' + i);
+                const color = colors[i];
+                if (led) {
+                    led.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                    led.style.color = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                    led.className = 'rgbstick-led on';
+                    rgbStickState.leds[i] = color;
+                }
+            }
+        }
+
+        /**
+         * Reset RGB stick state and display
+         */
+        function resetRGBStickState() {
+            rgbStickState = { r: 255, g: 0, b: 0, brightness: 128, leds: Array(10).fill({r:0,g:0,b:0}) };
+
+            // Reset sliders
+            document.getElementById('rgbstick-r').value = 255;
+            document.getElementById('rgbstick-g').value = 0;
+            document.getElementById('rgbstick-b').value = 0;
+            document.getElementById('rgbstick-brightness').value = 128;
+
+            // Reset displays
+            document.getElementById('rgbstick-r-value').textContent = '255';
+            document.getElementById('rgbstick-g-value').textContent = '0';
+            document.getElementById('rgbstick-b-value').textContent = '0';
+            document.getElementById('rgbstick-brightness-value').textContent = '128';
+
+            // Reset preview
+            const preview = document.getElementById('rgbstick-preview');
+            preview.style.backgroundColor = 'rgb(255, 0, 0)';
+            preview.style.color = 'rgb(255, 0, 0)';
+            preview.className = 'color-preview on';
+
+            // Reset LED visual
+            updateRGBStickVisual(0, 0, 0);
+        }
+
+        // ============================================
+        // CONNECTION HANDLING
+        // ============================================
+
+        connectBtn.addEventListener('click', () => {
+            if (!isConnected) {
+                updateStatus('connecting', 'Connecting...');
+                connectBtn.disabled = true;
+                ProtoFlow.connect();
+            } else {
+                ProtoFlow.disconnect();
+                isConnected = false;
+                currentDevice = null;
+                currentDeviceInfo = null;
+                updateStatus('', 'Disconnected');
+                connectBtn.textContent = 'Connect';
+                devicePicker.classList.remove('visible');
+                bidirPanel.classList.remove('visible');
+            }
+        });
+
+        deviceSelect.addEventListener('change', (e) => {
+            const uuid = e.target.value;
+            if (!uuid) return;
+
+            const option = deviceSelect.options[deviceSelect.selectedIndex];
+            const name = option.textContent;
+
+            // Unsubscribe from previous device
+            if (currentDevice && currentDevice !== uuid) {
+                ProtoFlow.unsubscribeFromDevice(currentDevice);
+            }
+
+            // Subscribe to new device
+            ProtoFlow.subscribeToDevice(uuid);
+            currentDevice = uuid;
+
+            // Look up device info from stored list (no async call!)
+            currentDeviceInfo = devicesList.find(d => d.uuid === uuid);
+            console.log('Device info:', currentDeviceInfo);
+
+            // Update UI
+            deviceNameEl.textContent = name;
+            bidirPanel.classList.add('visible');
+            updateStatus('connected', 'Connected to ' + name);
+
+            // Reset displays
+            hideAllSensorDisplays();
+            genericDisplay.style.display = 'block';
+
+            // Show only actuator controls for this device
+            showActuatorControls(currentDeviceInfo);
+
+            // Reset actuator displays
+            updateLedDisplay(false);
+            updateVibratorDisplay(false);
+            ledBarBits = 0;
+            updateLEDBarDisplay();
+            document.getElementById('ledbar-level').value = 0;
+            document.getElementById('ledbar-level-value').textContent = '0';
+            resetRGBStickState();
+
+            // Reset joystick state
+            joystickState = { x: 50, y: 50, button: false };
+            document.getElementById('joystick-x-value').textContent = '50';
+            document.getElementById('joystick-y-value').textContent = '50';
+            const joystickDot = document.getElementById('joystick-dot');
+            joystickDot.style.left = '50%';
+            joystickDot.style.top = '50%';
+            joystickDot.className = 'joystick-dot';
+            document.getElementById('joystick-button-indicator').textContent = 'BUTTON';
+            document.getElementById('joystick-button-indicator').className = 'joystick-button-indicator';
+            document.getElementById('joystick-button-container').style.display = 'none';
+        });
+
+        // ============================================
+        // PROTOFLOW EVENT HANDLERS
+        // ============================================
+
+        ProtoFlow.on('connect', () => {
+            isConnected = true;
+            updateStatus('connected', 'Connected! Select your device');
+            connectBtn.textContent = 'Disconnect';
+            connectBtn.disabled = false;
+        });
+
+        ProtoFlow.on('devices', (devices) => {
+            console.log('Devices received:', devices.length);
+
+            // Store devices list for later lookup (avoids async calls)
+            devicesList = devices;
+
+            deviceSelect.innerHTML = '<option value="">Select your device...</option>';
+
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.uuid;
+                option.textContent = device.deviceName || device.name || device.uuid.substring(0, 8);
+                deviceSelect.appendChild(option);
+            });
+
+            devicePicker.classList.add('visible');
+
+            // Auto-select if only one device
+            if (devices.length === 1) {
+                deviceSelect.value = devices[0].uuid;
+                deviceSelect.dispatchEvent(new Event('change'));
+            }
+        });
+
+        ProtoFlow.on('sensor', (data) => {
+            // Only process data from our subscribed device
+            if (data.device !== currentDevice) return;
+
+            console.log(`Sensor: ${data.sensor} = ${data.value}`);
+
+            // Show appropriate display and update value
+            showSensorDisplay(data.sensor);
+            updateSensorValue(data.sensor, data.value);
+        });
+
+        ProtoFlow.on('disconnect', () => {
+            isConnected = false;
+            currentDevice = null;
+            currentDeviceInfo = null;
+            updateStatus('', 'Disconnected');
+            connectBtn.textContent = 'Connect';
+            connectBtn.disabled = false;
+            devicePicker.classList.remove('visible');
+            bidirPanel.classList.remove('visible');
+        });
+
+        ProtoFlow.on('error', (error) => {
+            console.error('ProtoFlow error:', error);
+            updateStatus('', 'Error: ' + error.message);
+            connectBtn.disabled = false;
+        });
+
+        // ============================================
+        // TRY: ADD YOUR OWN FUNCTIONS HERE!
+        // ============================================
+
+        /**
+         * Example: Toggle LED based on sensor value
+         * Uncomment and modify to try it!
+         */
+        // function autoToggleLED(sensorValue) {
+        //     if (sensorValue > 50) {
+        //         sendActuatorCommand(1);  // Turn ON
+        //     } else {
+        //         sendActuatorCommand(0);  // Turn OFF
+        //     }
+        // }
+
+        /**
+         * Example: Custom function you can call from a button
+         */
+        // function myCustomFunction() {
+        //     console.log('My custom function was called!');
+        //     sendActuatorCommand(1);
+        // }
+
+    </script>
+</body>
+</html>

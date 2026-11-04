@@ -1,0 +1,2 @@
+# Netlify: serve index.html for every path, so links like /dashboard/1 work after a page reload.
+/*    /index.html   200
