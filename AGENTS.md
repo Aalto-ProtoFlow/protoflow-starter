@@ -4,7 +4,7 @@ Instructions for AI coding assistants working in this repository. People: start 
 
 ## What this is
 
-The web app for one team's ProtoFlow prototype. ProtoFlow connects ESP32 boards with Grove sensors and actuators to web pages:
+The web app and the board sketches for one team's ProtoFlow prototype. ProtoFlow connects ESP32 boards with Grove sensors and actuators to web pages:
 
 - ESP32 boards run Arduino sketches and connect to the team server over WiFi.
 - The team server, `YOUR-TEAM.proto.aalto.fi`, runs Node-RED, which relays live data and commands, and a backend for accounts, devices and history.
@@ -18,7 +18,8 @@ The app is static files. It is not deployed to the team server: people open it f
 |---|---|
 | `html/` | Plain HTML pages, no build step. `index.html` is the smallest complete page; `viewer-multi.html`, `controller.html` and `bidirectional.html` are larger references |
 | `react/` | React 19 app (Vite, React Router 7, Tailwind CSS 4, shadcn/ui, Chart.js): login, devices, live dashboard, history, settings |
-| `docs/components.md`, `docs/components.json` | Every Grove component: sensor names and values, actuator commands |
+| `firmware/` | Arduino sketches, one folder per board. `firmware/TeamDevice/` is the template: connected and registered, with one LED |
+| `docs/components.md`, `docs/components.json` | Every Grove component: sensor names and values, actuator commands, and how a sketch uses it ("In a sketch") |
 | `docs/javascript-api.md` | The connector library, `protoflow.js` |
 | `docs/protocol.md` | Messages between the app and Node-RED |
 | `docs/api-reference.md` | Backend REST API: accounts, devices, measurements, alerts, commands |
@@ -53,8 +54,21 @@ ProtoFlow.sendCommand(deviceUuid, 'led', true);   // values: docs/components.md
 
 Each device's `sensors` and `actuators` carry their registration (`name`, `type`, `data_type`, `unit`, and `min_value` / `max_value` for numbers), so a UI can set itself up from it. Subscribing twice is harmless. Full API: `docs/javascript-api.md`.
 
+## Board sketches (`firmware/`)
+
+The boards run the ProtoFlow Arduino library. It is installed in Arduino IDE from `ProtoFlow.zip` (TEAM-GUIDE.md, part 1) and is not in this repository. What you need from it is in `docs/components.md`: for every Grove module, under "In a sketch", its `#include`, a declaration with the meaning of each field, its optional settings, the calls it needs and the extra Arduino library it needs.
+
+1. Start from `firmware/TeamDevice/TeamDevice.ino`, or the team's existing sketch for that board. Don't write a sketch from scratch, and keep its connection code (`ProtoFlow.configureWiFi`, `configureWebSocket`, `onConnect`, `onRegistration`, `begin`, `update`) as it is.
+2. Use each module only through its component class from `docs/components.md` (`GroveLED`, `GroveTempHumidity`, ...). Never drive a module's pin with `digitalWrite()`, `analogRead()` or similar, and never write your own WiFi, WebSocket, HTTP or MQTT code: the class is what makes the module visible to Node-RED and the web app, and what turns their commands into pin changes.
+3. Ask the user which pin each module is wired to; don't guess, and don't silently keep the example's pin. Every module needs its own pin. Analog modules need GPIO 32-39 (the other analog pins stop working while WiFi is on). I²C modules use SDA 21 and SCL 22.
+4. Each module needs `x.setup()` in `setup()` and `x.loop()` in `loop()`; sensors also need `x.sendInitial()` in the `onRegistration` callback. The name in the declaration (`"led"`, `"climate"`) is the name the web app uses: keep the sketch and the pages consistent.
+5. If a module needs an extra Arduino library, tell the user to install it (Arduino IDE: Tools > Manage Libraries).
+6. `config.h` (WiFi password, server address) is gitignored and stays out of the repository. Create it from `config.example.h` in the sketch's folder; the server address is `wss://YOUR-TEAM.proto.aalto.fi/ws/device`.
+7. One sketch per board. For another board, copy the folder and give the folder and the `.ino` file the same new name (Arduino requires it), and a new `DEVICE_NAME`.
+
 ## Check your work
 
 - HTML: open the page in a browser and watch the browser console.
 - React: `npm run dev` while developing; `npm run build` must succeed before publishing.
+- Sketches: if `arduino-cli` is available, `arduino-cli compile --fqbn esp32:esp32:esp32 firmware/<Sketch>` must succeed. Otherwise ask the user to upload it in Arduino IDE and to paste the Serial Monitor output: it should show `WiFi connected`, `WebSocket connected` and `Registration ACCEPTED`.
 - Live data needs a powered device connected to the team server. If none is connected, the device list is empty; ask the user to switch one on.

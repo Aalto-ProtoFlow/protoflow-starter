@@ -33,19 +33,20 @@ Work in this order: set up Arduino IDE (part 1), get one board online and see it
 | Module (component) | Library to install |
 |---|---|
 | 3-Axis Digital Accelerometer (`GroveAccelerometer`) | Accelerometer ADXL345 (Seeed Studio) |
-| Gesture Sensor (`GroveGesture`) | Grove Gesture |
+| Gesture Sensor (`GroveGesture`) | Gesture PAJ7620 (Seeed Studio) |
 | LCD RGB Backlight (`GroveLCDRGB`) | Grove - LCD RGB Backlight |
 | 4-Digit Display (`Grove4DigitDisplay`) | Grove 4-Digit Display |
 | Chainable RGB LED (`GroveChainableRGB`) | Grove - Chainable RGB LED |
 | RGB LED Stick (`GroveRGBLEDStick`) | Adafruit NeoPixel |
 | OLED Display (`GroveOLED`) | U8g2 |
 | MP3 player (`GroveMP3`) | Seeed Serial MP3 Player and EspSoftwareSerial |
+| Ultrasonic Ranger (`GroveUltrasonic`) | Grove Ultrasonic Ranger |
 
-The other modules need nothing extra. If an example's comments name a different library, trust this table.
+The other modules need nothing extra. If an example's comments name a different library, trust this table ([docs/components.md](docs/components.md) lists the same under each module).
 
 ## 2. Get a board online
 
-Start from the example sketch for your module. [docs/components.md](docs/components.md) lists every module, its example, and the names its data arrives under.
+Start from the example sketch for your module, as below. Or start from [firmware/TeamDevice/](firmware/TeamDevice/) in this repository: it already connects and has one LED on pin 33, and you add modules as [docs/components.md](docs/components.md) shows under "In a sketch". That file lists every module, its example, and the names its data arrives under.
 
 1. **Open the example**: **File > Examples > ProtoFlow**, for example **Sensors > GroveTempHumidity**.
 2. **Save your own copy**: **File > Save As**, into a `firmware/` folder in this repository, so the sketch lives with the rest of your project.
@@ -119,4 +120,4 @@ If the server breaks, your teacher can rebuild it. A rebuild erases everything o
 | Board online, web page shows nothing | The page still says `YOUR-TEAM`, or the sensor hasn't sent yet: some send only when the value changes |
 | Still stuck | Ask your TA, and bring the Serial Monitor output |
 
-**AI tools** read [AGENTS.md](AGENTS.md), which covers the web app. For firmware questions, give them this guide and [docs/components.md](docs/components.md).
+**AI tools** that work in this repository (Codex, Claude Code, Cursor, Copilot) read [AGENTS.md](AGENTS.md), which covers the web app and the sketches in `firmware/`. Tell them which pin each module is wired to. A chat tool that can't see the repository (ChatGPT in the browser) knows nothing about ProtoFlow: give it `AGENTS.md` and [docs/components.md](docs/components.md) first.

@@ -23,6 +23,8 @@ Replace `YOUR-TEAM` with your team server's name (for example `alpha`) everywher
 - the `<meta name="protoflow-websocket-url">` line of each page in `html/`
 - `react/.env`
 
+The boards get it from their `config.h`, made from `firmware/TeamDevice/config.example.h` (TEAM-GUIDE.md, part 2).
+
 ## 2. Pick a starting point
 
 **Plain HTML** (`html/`, no tools needed)
@@ -42,7 +44,7 @@ Open http://localhost:5173 and register an account on the login page. The app ha
 
 ## 3. Know your components
 
-[docs/components.md](docs/components.md) lists every Grove component: the names and values your app receives, and the exact commands each actuator accepts. The connector library is described in [docs/javascript-api.md](docs/javascript-api.md).
+[docs/components.md](docs/components.md) lists every Grove component: the names and values your app receives, the exact commands each actuator accepts, and how a board's sketch uses it. The connector library is described in [docs/javascript-api.md](docs/javascript-api.md).
 
 ## 4. Publish
 

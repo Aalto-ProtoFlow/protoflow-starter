@@ -1,5 +1,5 @@
 {
-  "$comment": "ProtoFlow component catalog: what each built-in Grove component registers, and the exact values a web app receives from it or sends to it. Single source for components.md, the virtual kit and the demo page. Edit this file, then run `node dev/scripts/build-components-doc.js`, which checks it against the firmware and regenerates components.md.",
+  "$comment": "ProtoFlow component catalog: what each built-in Grove component registers, and the exact values a web app receives from it or sends to it. `libraries` lists the Arduino libraries (Library Manager names) a component needs besides ProtoFlow. Single source for components.md, the virtual kit and the demo page. Edit this file, then run `node dev/scripts/build-components-doc.js`, which checks it against the firmware and regenerates components.md.",
   "library_version": "1.3.1",
   "rules": [
     "Names are chosen in the sketch. The names below are the ones the example sketches use. Components that register several sensors build the names from the instance name: `climate` gives `climate_temp` and `climate_humidity`.",
@@ -11,7 +11,9 @@
     "On/off actuators (types `led` and `buzzer`) take `true` / `false`, `1` / `0` or `\"on\"` / `\"off\"`. Node-RED reads the strings `\"on\"`, `\"1\"` and `\"true\"` (any case) as on and every other string as off. Any other value is on when it is truthy, so every number except 0 means on.",
     "`rgb_led` and `tone_buzzer` commands are packed into a short code on the way to the device. Only `{r, g, b}` and `{frequency, duration}` get through, so always send exactly those fields, as numbers.",
     "Don't put two actuators of the same type on one device: a command always reaches the first one. `GroveVibrator` and `GroveBuzzer` are both `buzzer`; `GroveLED` and `GroveLEDButton` are both `led`.",
-    "Components marked untested have not been verified on hardware yet."
+    "Components marked untested have not been verified on hardware yet.",
+    "In a sketch, use each module only through its component class (`GroveLED`, `GroveTempHumidity`, ...): the class registers the module, so Node-RED and web apps see it, and turns their commands into pin changes. Code that drives the module's pin directly (`digitalWrite`, `analogRead`) works on the board, but the rest of the system never sees it.",
+    "The pins in the examples are only defaults. Use the pin the module is actually wired to. Each module needs its own pin; analog modules need GPIO 32-39 (the other analog pins stop working while WiFi is on); I²C modules use SDA 21 and SCL 22."
   ],
   "components": [
     {
@@ -95,6 +97,7 @@
       "module": "Grove - Ultrasonic Ranger v2.0",
       "example": "Sensors/GroveUltrasonic",
       "tested": false,
+      "libraries": ["Grove Ultrasonic Ranger"],
       "summary": "Distance to the nearest object in front of the sensor.",
       "sensors": [
         { "name": "distance", "type": "distance", "data_type": "float", "min": 2, "max": 350, "unit": "cm",
@@ -123,6 +126,7 @@
       "module": "Grove - 3-Axis Digital Accelerometer (±16g, ADXL345)",
       "example": "Sensors/Grove3AxisAccelerometer",
       "tested": true,
+      "libraries": ["Accelerometer ADXL345"],
       "summary": "Acceleration along three axes; at rest it shows gravity, so it also tells tilt.",
       "sensors": [
         { "name": "accelerometer", "type": "imu", "data_type": "object", "min": -16, "max": 16, "unit": "g",
@@ -136,6 +140,7 @@
       "module": "Grove - Gesture Sensor (PAJ7620)",
       "example": "Sensors/GroveGesture",
       "tested": true,
+      "libraries": ["Gesture PAJ7620"],
       "summary": "Recognises hand gestures in front of the sensor.",
       "sensors": [
         { "name": "gesture", "type": "gesture", "data_type": "string", "min": 0, "max": 0, "unit": "gesture",
@@ -180,6 +185,7 @@
       "module": "Grove - Chainable RGB LED (P9813)",
       "example": "Actuators/GroveChainableRGB",
       "tested": true,
+      "libraries": ["Grove - Chainable RGB LED"],
       "summary": "Full-colour LED; several can be chained, and all show the same colour.",
       "actuators": [
         { "name": "rgb", "type": "rgb_led", "data_type": "object", "min": 0, "max": 255, "unit": "rgb",
@@ -195,6 +201,7 @@
       "module": "Grove - RGB LED Stick (10 WS2813 Mini LEDs)",
       "example": "Actuators/GroveRGBLEDStick",
       "tested": true,
+      "libraries": ["Adafruit NeoPixel"],
       "summary": "Ten full-colour LEDs, each settable on its own.",
       "actuators": [
         { "name": "rgbstick", "type": "rgb_strip", "data_type": "object", "min": 0, "max": 255, "unit": "rgb",
@@ -264,6 +271,7 @@
       "module": "Grove - 4-Digit Display (TM1637)",
       "example": "Actuators/Grove4DigitDisplay",
       "tested": true,
+      "libraries": ["Grove 4-Digit Display"],
       "summary": "Four 7-segment digits with a colon.",
       "actuators": [
         { "name": "display", "type": "display", "data_type": "object", "min": 0, "max": 9999, "unit": "",
@@ -281,6 +289,7 @@
       "module": "Grove - LCD RGB Backlight v4.0 (16 x 2 characters)",
       "example": "Actuators/GroveLCDRGB",
       "tested": true,
+      "libraries": ["Grove - LCD RGB Backlight"],
       "summary": "Two lines of text with a colour backlight.",
       "actuators": [
         { "name": "lcd", "type": "lcd_rgb", "data_type": "object", "min": 0, "max": 0, "unit": "",
@@ -299,6 +308,7 @@
       "module": "Grove - OLED Display 0.96\" (128 x 64 pixels)",
       "example": "Actuators/GroveOLED",
       "tested": true,
+      "libraries": ["U8g2"],
       "summary": "Small monochrome screen for text and a progress bar.",
       "actuators": [
         { "name": "oled", "type": "oled", "data_type": "object", "min": 0, "max": 0, "unit": "",
@@ -337,6 +347,7 @@
       "module": "Grove - MP3 v4.0 (WT2605CX)",
       "example": "Bidirectional/GroveMP3",
       "tested": true,
+      "libraries": ["Seeed Serial MP3 Player", "EspSoftwareSerial"],
       "summary": "Plays MP3 files from an SD card and reports what it is doing.",
       "sensors": [
         { "name": "mp3_status", "type": "mp3_status", "data_type": "object", "min": 0, "max": 0, "unit": "",
