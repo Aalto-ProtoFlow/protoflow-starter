@@ -57,4 +57,4 @@ GitHub Pages is free for public repositories. Vercel and Netlify also publish pr
 
 ## Working with an AI assistant
 
-[AGENTS.md](AGENTS.md) tells AI coding tools how this project works, and many read it automatically. If yours doesn't, point it at that file. In a chat-only AI, attach `AGENTS.md` and `docs/components.md`.
+[AGENTS.md](AGENTS.md) tells AI coding tools how this project works, and many read it automatically. If yours doesn't, point it at that file. In a chat-only AI (ChatGPT, Gemini or Claude in the browser), attach [AI-CONTEXT.md](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/AI-CONTEXT.md): it holds `AGENTS.md`, the template sketch, the starter page and the main docs in one file.
