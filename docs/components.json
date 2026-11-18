@@ -1,6 +1,6 @@
 {
   "$comment": "ProtoFlow component catalog: what each built-in Grove component registers, and the exact values a web app receives from it or sends to it. Single source for components.md, the virtual kit and the demo page. Edit this file, then run `node dev/scripts/build-components-doc.js`, which checks it against the firmware and regenerates components.md.",
-  "library_version": "1.3.0",
+  "library_version": "1.3.1",
   "rules": [
     "Names are chosen in the sketch. The names below are the ones the example sketches use. Components that register several sensors build the names from the instance name: `climate` gives `climate_temp` and `climate_humidity`.",
     "Receive sensor data: subscribe to the device, then `ProtoFlow.on('sensor', ({ device, sensor, value, timestamp }) => ...)`. `sensor` is the registered name, and `value` has the form listed for that sensor.",
@@ -105,7 +105,7 @@
       "class": "GroveTempHumidity",
       "module": "Grove - Temperature & Humidity Sensor (DHT11, blue) / Pro (DHT22, white)",
       "example": "Sensors/GroveTempHumidity",
-      "tested": false,
+      "tested": true,
       "summary": "Air temperature and relative humidity from one module.",
       "sensors": [
         { "name": "climate_temp", "type": "temperature", "data_type": "float", "min": 0, "max": 50, "unit": "celsius",
@@ -115,14 +115,14 @@
       ],
       "notes": [
         "The sensor can be read at most every 2 s. Both values are re-sent every 10 s even when they don't change.",
-        "For the white Pro module, set `dhtType = DHT22` in the sketch."
+        "For the white Pro module, set `dhtType = DHT22` in the sketch. Tested with the blue DHT11 module v1.2; the DHT22 setting is not yet tested."
       ]
     },
     {
       "class": "GroveAccelerometer",
       "module": "Grove - 3-Axis Digital Accelerometer (±16g, ADXL345)",
       "example": "Sensors/Grove3AxisAccelerometer",
-      "tested": false,
+      "tested": true,
       "summary": "Acceleration along three axes; at rest it shows gravity, so it also tells tilt.",
       "sensors": [
         { "name": "accelerometer", "type": "imu", "data_type": "object", "min": -16, "max": 16, "unit": "g",

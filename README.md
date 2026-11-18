@@ -14,9 +14,11 @@ This web app, in the browser
 
 The app is plain files that run in the browser, so it can be hosted anywhere. It talks only to your team server, never to the ESP32 directly.
 
+**New team?** Start with [TEAM-GUIDE.md](TEAM-GUIDE.md): your server's addresses, setting up Arduino IDE and getting your ESP32s online. Then come back here for the web app.
+
 ## 1. Set your server
 
-Replace `YOUR-TEAM` with your team server's name (for example `alpha`) everywhere in this repository. A project-wide find-and-replace does it in one go. It appears in two places:
+Replace `YOUR-TEAM` with your team server's name (for example `alpha`) everywhere in this repository. A project-wide find-and-replace does it in one go, and also fills in your addresses in the guides. The app reads it from two places:
 
 - the `<meta name="protoflow-websocket-url">` line of each page in `html/`
 - `react/.env`

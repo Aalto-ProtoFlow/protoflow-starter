@@ -22,6 +22,7 @@ The app is static files. It is not deployed to the team server: people open it f
 | `docs/javascript-api.md` | The connector library, `protoflow.js` |
 | `docs/protocol.md` | Messages between the app and Node-RED |
 | `docs/api-reference.md` | Backend REST API: accounts, devices, measurements, alerts, commands |
+| `TEAM-GUIDE.md` | For people: the team server's addresses, the Node-RED editor, setting up Arduino IDE and flashing the ESP32s |
 
 ## Rules
 
