@@ -373,4 +373,4 @@ Note the differences: compact vs JSON, `sensor` vs `sensor_name`, millisecond ti
 - [REST API Reference](./api-reference.md): backend endpoints and database schema
 - [JavaScript Client API](./javascript-api.md): `protoflow.js` WebSocket client
 - [Component Catalog](./components.md): what each built-in Grove component registers, and its exact values and commands
-- [Add a Custom Sensor](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-custom-sensor.md) and [Add a Custom Actuator](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-custom-actuator.md)
+- [Add a Custom Sensor](./guides/add-custom-sensor.md) and [Add a Custom Actuator](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-custom-actuator.md)

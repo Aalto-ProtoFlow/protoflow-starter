@@ -7,7 +7,7 @@ You will create a polished React visualization component for a temperature senso
 ## Prerequisites
 
 - The starter app running locally (`npm run dev` in `react/`)
-- A device sending temperature data (real or simulated -- see [Add a Custom Sensor](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-custom-sensor.md))
+- A device sending temperature data: the `GroveTempHumidity` example sends `climate_temp` (see [components.md](../components.md)), or a simulated device
 - Basic familiarity with React and Tailwind CSS
 
 ## Steps
@@ -155,6 +155,6 @@ The starter app ships with these shadcn/ui components ready to use: `Button`, `C
 
 ## Next steps
 
-- [Add a Custom Sensor](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-custom-sensor.md) — wire a real sensor and send data from firmware
+- [Add a Custom Sensor](./add-custom-sensor.md) — wire a real sensor and send data from firmware
 - [Add a New Page](./add-new-page.md) — create a dedicated page for your custom feature
 - [Integrate an External API](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/integrate-external-api.md) — combine sensor data with external data sources
