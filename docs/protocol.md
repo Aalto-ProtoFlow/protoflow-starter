@@ -8,7 +8,7 @@ This document describes what the code in `broker/flows.json`, `firmware/src/` an
 
 | Endpoint | Who uses it | Purpose |
 |----------|-------------|---------|
-| `/ws/device` (WebSocket) | ESP32 devices | Registration, heartbeat, sensor data, actuator commands |
+| `/ws/device` (WebSocket) | ESP32 devices | Registration, heartbeat, sensor data, actuator commands (to the device, and from it to other devices) |
 | `/ws/app` (WebSocket) | Web clients (`protoflow.js`, starter app) | Device list, subscriptions, live sensor data, actuator commands |
 | `POST /device/register` (HTTP) | Battery-powered devices in HTTP mode | Registration without a WebSocket |
 | `POST /device/data` (HTTP) | Battery-powered devices in HTTP mode | Batched sensor readings |
@@ -206,6 +206,28 @@ Most display-type Grove actuators (`display`, `lcd_rgb`, `oled`, `led_bar`, `rgb
 
 ---
 
+## Device-to-Device Commands (ESP32 → NodeRED → ESP32)
+
+A device can send an actuator command to another device on the same broker, or to itself, with `ProtoFlow.sendCommand(device, actuator, value)`. It sends the same message a web client sends:
+
+```json
+{ "type": "actuator_command", "device": "Alarm board", "actuator": "buzzer", "value": true }
+```
+
+- `device` is the target's UUID or its `device_name`. NodeRED tries the UUID first; a name must belong to exactly one registered device.
+- NodeRED checks that the target registered that actuator, then encodes and sends the command exactly as for a web client (tables above). The target can't tell where a command came from.
+- A delivered command gets no reply. One that can't be delivered is answered to the sender:
+
+```json
+{ "type": "command_error", "device": "Nobody", "actuator": "led", "message": "no device \"Nobody\" is connected" }
+```
+
+`message` is one of `no device "<device>" is connected`, `<n> devices are named "<device>": use its UUID`, `device "<name>" has no actuator "<actuator>"` and `a command needs device, actuator and value`. The firmware logs it as `Command not delivered: …`.
+
+The firmware sends commands only after `registration_ack`; before that, `sendCommand` returns `false`. Measured on the staff server (2026-11-20): 9–21 ms from `sendCommand` on a board to its own actuator callback.
+
+---
+
 ## Web Client Messages (`/ws/app`)
 
 ### Client → NodeRED
@@ -332,6 +354,22 @@ Backend checks access, looks up the UUID
 NodeRED encodes and forwards to the device (same as above)
 ```
 
+### Actuator Command Path (Device to Device)
+
+```
+ESP32 A: ProtoFlow.sendCommand("Alarm board", "buzzer", true)
+  sends {"type":"actuator_command", "device", "actuator", "value"}
+  │
+  ▼
+NodeRED /ws/device
+  - Device Command Handler: finds the target by UUID or unique name,
+    checks the actuator; if not deliverable, command_error back to A
+  - Actuator Command Router: encodes as for a web client (e.g. B1)
+  │
+  ▼
+ESP32 B runs the actuator callback
+```
+
 ---
 
 ## Data at Each Layer
@@ -373,4 +411,4 @@ Note the differences: compact vs JSON, `sensor` vs `sensor_name`, millisecond ti
 - [REST API Reference](./api-reference.md): backend endpoints and database schema
 - [JavaScript Client API](./javascript-api.md): `protoflow.js` WebSocket client
 - [Component Catalog](./components.md): what each built-in Grove component registers, and its exact values and commands
-- [Add a Custom Sensor](./guides/add-custom-sensor.md) and [Add a Custom Actuator](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-custom-actuator.md)
+- [Add a Custom Sensor](./guides/add-custom-sensor.md) and [Add a Custom Actuator](./guides/add-custom-actuator.md)

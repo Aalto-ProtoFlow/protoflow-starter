@@ -192,5 +192,5 @@ Web pages then receive `led_on` as `true` / `false`, whether the LED was switche
 ## Next steps
 
 - [Add a Custom Visualization](./add-custom-visualization.md): more styling with shadcn/ui, Progress bars and color gradients
-- [Add a Custom Actuator](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-custom-actuator.md): control hardware from your web app
+- [Add a Custom Actuator](./add-custom-actuator.md): control hardware from your web app
 - [Add a Backend Route](https://github.com/Aalto-ProtoFlow/protoflow/blob/main/docs/guides/add-backend-route.md): store and query custom data

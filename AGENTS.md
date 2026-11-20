@@ -23,9 +23,14 @@ The app is static files. It is not deployed to the team server: people open it f
 | `docs/javascript-api.md` | The connector library, `protoflow.js` |
 | `docs/protocol.md` | Messages between the app and Node-RED |
 | `docs/api-reference.md` | Backend REST API: accounts, devices, measurements, alerts, commands |
-| `docs/guides/` | How-tos: a sensor or value without a component (`add-custom-sensor.md`), a React visualization, a new React page |
+| `docs/guides/` | How-tos: a sensor or value without a component (`add-custom-sensor.md`), an actuator without a component (`add-custom-actuator.md`), a React visualization, a new React page |
 | `TEAM-GUIDE.md` | For people: the team server's addresses, the Node-RED editor, setting up Arduino IDE and flashing the ESP32s |
 | `AI-CONTEXT.md` | Generated copy of this file and the main docs, for AI chat tools that can't see the repository. Don't edit it |
+| `TEAM-NOTES.md` | If it exists: what is true only for this team (see below) |
+
+## Team notes
+
+This file is the same for every team and changes when the starter is updated. What is true only for this team goes in `TEAM-NOTES.md` at the repository root: which pin each module is wired to, modules and other hardware without a component, extra Arduino libraries, and decisions the team has made. Read it, if it exists, before changing a sketch or a page. When the user tells you such a fact, add it there, creating the file if needed, and not to this file.
 
 ## Rules
 
@@ -61,12 +66,13 @@ Each device's `sensors` and `actuators` carry their registration (`name`, `type`
 The boards run the ProtoFlow Arduino library. It is installed in Arduino IDE from `ProtoFlow.zip` (TEAM-GUIDE.md, part 1) and is not in this repository. What you need from it is in `docs/components.md`: for every Grove module, under "In a sketch", its `#include`, a declaration with the meaning of each field, its optional settings, the calls it needs and the extra Arduino library it needs.
 
 1. Start from `firmware/TeamDevice/TeamDevice.ino`, or the team's existing sketch for that board. Don't write a sketch from scratch, and keep its connection code (`ProtoFlow.configureWiFi`, `configureWebSocket`, `onConnect`, `onRegistration`, `begin`, `update`) as it is.
-2. Use each module only through its component class from `docs/components.md` (`GroveLED`, `GroveTempHumidity`, ...). Never drive a module's pin with `digitalWrite()`, `analogRead()` or similar, and never write your own WiFi, WebSocket, HTTP or MQTT code: the class is what makes the module visible to Node-RED and the web app, and what turns their commands into pin changes. Only for a module that has no class, or a value the board computes itself (such as whether the LED is on), follow `docs/guides/add-custom-sensor.md`: read it as that guide shows and send it with `ProtoFlow.addSensor` and `ProtoFlow.sendSensorData`.
-3. Ask the user which pin each module is wired to; don't guess, and don't silently keep the example's pin. Every module needs its own pin. Analog modules need GPIO 32-39 (the other analog pins stop working while WiFi is on). I²C modules use SDA 21 and SCL 22.
+2. Use each module only through its component class from `docs/components.md` (`GroveLED`, `GroveTempHumidity`, ...). Never drive a module's pin with `digitalWrite()`, `analogRead()` or similar, and never write your own WiFi, WebSocket, HTTP or MQTT code: the class is what makes the module visible to Node-RED and the web app, and what turns their commands into pin changes. Only for a module that has no class, follow a guide, and use the module's own Arduino library if it has one: for something the board reads, or a value it computes itself (such as whether the LED is on), `docs/guides/add-custom-sensor.md` (`ProtoFlow.addSensor`, `ProtoFlow.sendSensorData`); for something the board drives, such as a servo or a display, `docs/guides/add-custom-actuator.md` (`ProtoFlow.addActuator`, `ProtoFlow.onActuator`).
+3. Ask the user which pin each module is wired to, unless `TEAM-NOTES.md` says; don't guess, and don't silently keep the example's pin. Every module needs its own pin. Analog modules need GPIO 32-39 (the other analog pins stop working while WiFi is on). GPIO 34-39 are input only, so no actuator can use them. Never use GPIO 6-11 (the board's flash memory), and avoid 0, 1, 2, 3, 12 and 15 (1 and 3 are the USB serial port; the others decide how the board starts). I²C modules share SDA 21 and SCL 22; SPI modules use SCK 18, MISO 19 and MOSI 23.
 4. Each module needs `x.setup()` in `setup()` and `x.loop()` in `loop()`; sensors also need `x.sendInitial()` in the `onRegistration` callback. The name in the declaration (`"led"`, `"climate"`) is the name the web app uses: keep the sketch and the pages consistent.
 5. If a module needs an extra Arduino library, tell the user to install it (Arduino IDE: Tools > Manage Libraries).
 6. `config.h` (WiFi password, server address) is gitignored and stays out of the repository. Create it from `config.example.h` in the sketch's folder; the server address is `wss://YOUR-TEAM.proto.aalto.fi/ws/device`.
 7. One sketch per board. For another board, copy the folder and give the folder and the `.ino` file the same new name (Arduino requires it), and a new `DEVICE_NAME`.
+8. One board can control another: `ProtoFlow.sendCommand("Other board", "buzzer", true)` sends the same command a web page would to the board with that `DEVICE_NAME` (or UUID), through the team server, with no page open. Every board needs its own `DEVICE_NAME`. Send on change, not on every `loop()`. The value is what the target's actuator expects (`docs/components.md`, or its sketch). Details: `docs/guides/add-custom-actuator.md`, "A command from another board".
 
 ## Check your work
 

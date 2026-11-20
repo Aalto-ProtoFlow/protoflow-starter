@@ -1,6 +1,6 @@
 {
   "$comment": "ProtoFlow component catalog: what each built-in Grove component registers, and the exact values a web app receives from it or sends to it. `libraries` lists the Arduino libraries (Library Manager names) a component needs besides ProtoFlow. Single source for components.md, the virtual kit and the demo page. Edit this file, then run `node dev/scripts/build-components-doc.js`, which checks it against the firmware and regenerates components.md.",
-  "library_version": "1.3.1",
+  "library_version": "1.4.0",
   "rules": [
     "Names are chosen in the sketch. The names below are the ones the example sketches use. Components that register several sensors build the names from the instance name: `climate` gives `climate_temp` and `climate_humidity`.",
     "Receive sensor data: subscribe to the device, then `ProtoFlow.on('sensor', ({ device, sensor, value, timestamp }) => ...)`. `sensor` is the registered name, and `value` has the form listed for that sensor.",

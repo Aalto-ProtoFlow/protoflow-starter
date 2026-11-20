@@ -66,6 +66,23 @@ Start from the example sketch for your module, as below. Or start from [firmware
 
 **Several modules on one board**: keep your sketch and copy the other module's lines into it. The top comment of each example has a box, "HOW TO ADD … TO YOUR PROJECT", listing exactly the lines to copy. Each module needs its own pin. Two limits: two actuators of the same type on one board don't work (a command reaches only the first; see [docs/components.md](docs/components.md)), and a board can have only one accelerometer.
 
+**Choosing pins**: a Grove cable that ends in jumper wires fits any pin. Any free GPIO works, within these limits:
+
+| GPIO | |
+|---|---|
+| 32–39 | The only pins for analog modules (slider, rotary angle, thumb joystick, sound): the other analog pins stop working while WiFi is on |
+| 34–39 | Input only: no LEDs, buzzers or other actuators |
+| 21, 22 | I²C: SDA and SCL, shared by all I²C modules |
+| 18, 19, 23 | SPI: SCK, MISO and MOSI, if you use an SPI module such as an e-paper display |
+| 6–11 | Never: the board's flash memory. The board crashes |
+| 0, 1, 2, 3, 12, 15 | Avoid: 1 and 3 are the USB serial port, and the others decide how the board starts |
+
+Write down which pin each module is on in `TEAM-NOTES.md` (see the end of this guide).
+
+**One board controlling another**, such as a button on one and a buzzer on the other: the sketch of the first sends `ProtoFlow.sendCommand("Other board", "buzzer", true)`, see [docs/guides/add-custom-actuator.md](docs/guides/add-custom-actuator.md#a-command-from-another-board). Give every board its own `DEVICE_NAME`.
+
+**A module that isn't in [docs/components.md](docs/components.md)**, such as a servo or an e-paper display: follow [docs/guides/add-custom-sensor.md](docs/guides/add-custom-sensor.md) for something the board reads, or [docs/guides/add-custom-actuator.md](docs/guides/add-custom-actuator.md) for something it drives.
+
 **Untested modules**: [docs/components.md](docs/components.md) says which modules have been checked on hardware. If one of the others behaves oddly, show your TA what the Serial Monitor says.
 
 ## 3. The Node-RED editor
@@ -121,3 +138,5 @@ If the server breaks, your teacher can rebuild it. A rebuild erases everything o
 | Still stuck | Ask your TA, and bring the Serial Monitor output |
 
 **AI tools** that work in this repository (Codex, Claude Code, Cursor, Copilot) read [AGENTS.md](AGENTS.md), which covers the web app and the sketches in `firmware/`. Tell them which pin each module is wired to. A chat tool that can't see the repository (ChatGPT, Gemini or Claude in the browser) knows nothing about ProtoFlow: attach [AI-CONTEXT.md](AI-CONTEXT.md) at the start of the conversation, then paste the sketch or page you want changed.
+
+**`TEAM-NOTES.md`**: keep what is true only for your team in this file at the root of the repository: which pin each module is on, modules without a component, extra libraries, decisions you have made. AI tools that work in the repository read it, and add to it when you tell them such facts; attach it to a chat tool together with `AI-CONTEXT.md`. Don't put your notes in `AGENTS.md`, `TEAM-GUIDE.md` or `docs/`: those files change when the starter is updated.
